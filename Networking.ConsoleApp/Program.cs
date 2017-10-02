@@ -17,6 +17,7 @@ namespace Networking.ConsoleApp
 
                 var server = new Server(ipAddress, port);
                 await server.Listen(tokenSource.Token);
+                server.StartDiagnostics();
                 Console.WriteLine("done....");
             }
             catch (Exception ex)

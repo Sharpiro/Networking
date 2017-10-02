@@ -19,8 +19,8 @@ namespace Networking
 
         public TheClient(string ipAddress, int port)
         {
-            Port = port > 0 && port < 65536 ? port : throw new ArgumentOutOfRangeException(nameof(port));
             IpAddress = ipAddress ?? throw new ArgumentNullException(nameof(ipAddress));
+            Port = port > 0 && port < 65536 ? port : throw new ArgumentOutOfRangeException(nameof(port));
             _client = new TcpClient();
         }
 
