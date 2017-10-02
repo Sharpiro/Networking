@@ -9,8 +9,8 @@ namespace Networking
     public class TheClient
     {
         private TcpClient _client;
-        private readonly string _ipAddress;
-        private readonly int _port;
+        public string IpAddress { get; set; }
+        public int Port { get; set; }
 
         public bool IsConnected => _client?.Connected ?? false;
         public event Action Connected;
@@ -19,8 +19,8 @@ namespace Networking
 
         public TheClient(string ipAddress, int port)
         {
-            _port = port > 0 && port < 65536 ? port : throw new ArgumentOutOfRangeException(nameof(port));
-            _ipAddress = ipAddress ?? throw new ArgumentNullException(nameof(ipAddress));
+            Port = port > 0 && port < 65536 ? port : throw new ArgumentOutOfRangeException(nameof(port));
+            IpAddress = ipAddress ?? throw new ArgumentNullException(nameof(ipAddress));
             _client = new TcpClient();
         }
 
@@ -30,7 +30,7 @@ namespace Networking
             {
                 _client = new TcpClient();
             }
-            await _client.ConnectAsync(IPAddress.Parse(_ipAddress), _port);
+            await _client.ConnectAsync(IPAddress.Parse(IpAddress), Port);
             OnConnected();
         }
 

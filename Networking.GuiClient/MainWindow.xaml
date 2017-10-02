@@ -8,6 +8,10 @@
     <Grid>
         <StackPanel Margin="15">
             <StackPanel Orientation="Horizontal">
+                <TextBox Text="{Binding IpAddress, UpdateSourceTrigger=PropertyChanged}" Width="100" LostFocus="UIElement_OnLostFocus"/>
+                <TextBox Text ="{Binding Port, UpdateSourceTrigger=PropertyChanged}" Width="100" Margin="15,0,0,0" LostFocus="UIElement_OnLostFocus"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal">
                 <Button Content="Connect" Width="75" Click="ConnectButton_OnClick"/>
                 <Button Content="Disconnect" Width="75" Click="DisconnectButton_OnClick" Margin="5,0,0,0"/>
                 <TextBlock Text="IsConnected:" Margin="15,0,0,0" Width="75"/>
