@@ -36,7 +36,7 @@ namespace Networking
 
         public async Task Disconnect()
         {
-            if (!IsConnected) return;
+            //if (!IsConnected) return;
             await Task.Yield();
             _client.Close();
             _client = null;
@@ -45,7 +45,7 @@ namespace Networking
 
         public async Task SendMessage(string message)
         {
-            if (!IsConnected) throw new InvalidOperationException("Cannot send message, client is not conencted");
+            //if (!IsConnected) throw new InvalidOperationException("Cannot send message, client is not conencted");
             if (string.IsNullOrEmpty(message)) throw new ArgumentNullException(nameof(message));
             var stream = _client.GetStream();
             var buffer = Encoding.UTF8.GetBytes(message);
