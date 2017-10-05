@@ -13,9 +13,11 @@ namespace Networking
         public int Port { get; set; }
 
         public bool IsConnected => _client?.Connected ?? false;
+
         public event Action Connected;
         public event Action Disconnected;
         public event Action ConnectionChanged;
+        public event Action<string> MessageReceived;
 
         public TheClient(string ipAddress, int port)
         {
@@ -32,6 +34,7 @@ namespace Networking
             }
             await _client.ConnectAsync(IPAddress.Parse(IpAddress), Port);
             OnConnected();
+            var _ = ReceiveMessagesAsync();
         }
 
         public async Task Disconnect()
@@ -52,6 +55,17 @@ namespace Networking
             await stream.WriteAsync(buffer, 0, buffer.Length);
         }
 
+        private async Task ReceiveMessagesAsync()
+        {
+            var stream = _client.GetStream();
+            var buffer = new byte[1024];
+            var bufferSize = await stream.ReadAsync(buffer, 0, buffer.Length);
+            if (bufferSize == 0) await Disconnect();
+            var data = new byte[bufferSize];
+            var message = Encoding.UTF8.GetString(data);
+            OnMessageReceived(message);
+        }
+
         protected virtual void OnDisconnected()
         {
             Disconnected?.Invoke();
@@ -65,5 +79,6 @@ namespace Networking
         }
 
         protected virtual void OnConnectionChanged() => ConnectionChanged?.Invoke();
+        protected virtual void OnMessageReceived(string message) => MessageReceived.Invoke(message);
     }
 }

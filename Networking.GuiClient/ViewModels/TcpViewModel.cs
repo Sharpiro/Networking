@@ -4,8 +4,8 @@
     {
 
         private string _inputText;
-        private string _ipAddress = "127.0.0.1";
-        private int _port = 500;
+        private string _ipAddress;
+        private int _port;
 
         public string InputText
         {

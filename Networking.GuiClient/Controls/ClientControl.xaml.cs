@@ -8,18 +8,19 @@ namespace Networking.GuiClient.Controls
     public partial class ClientControl
     {
         private readonly TheClient _client;
-        private readonly ClientControlViewModel _viewModel = new ClientControlViewModel();
+        private readonly ClientControlViewModel _viewModel;
 
-        public ClientControl()
+        public ClientControl(TheClient client, ClientControlViewModel viewModel)
         {
             InitializeComponent();
-            DataContext = _viewModel;
-            _client = new TheClient(_viewModel.IpAddress, _viewModel.Port);
+            DataContext = _viewModel= viewModel;
+            _client = client;
             Initialize();
         }
 
         private void Initialize()
         {
+            _client.MessageReceived += message => Console.WriteLine(message);
             _client.ConnectionChanged += () => _viewModel.IsConnected = _client.IsConnected; ;
         }
 

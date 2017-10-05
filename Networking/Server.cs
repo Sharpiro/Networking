@@ -13,16 +13,18 @@ namespace Networking
 {
     public class Server
     {
-        public int Port { get; set; }
-        private readonly TcpListener _tcpListener;
+        private TcpListener _tcpListener;
         private readonly Dictionary<string, TcpClient> _clients = new Dictionary<string, TcpClient>(StringComparer.InvariantCultureIgnoreCase);
         private CancellationTokenSource _diagnosticsCts;
+        private CancellationTokenSource _listenCts;
 
         public string IpAddress { get; set; }
+        public int Port { get; set; }
         public bool DiagnosticsRunning => !_diagnosticsCts?.IsCancellationRequested ?? false;
         public bool IsListening { get; private set; }
 
         public event Action<string> ClientConnected;
+        public event Action<string> ClientDisconnected;
         public event Action<string, string> MessageReceived;
         public event Action<string> Started;
         public event Action Stopped;
@@ -34,22 +36,24 @@ namespace Networking
         {
             IpAddress = ipAddress ?? throw new ArgumentNullException(nameof(ipAddress));
             Port = port > 0 && port < 65536 ? port : throw new ArgumentOutOfRangeException(nameof(port));
-            _tcpListener = new TcpListener(IPAddress.Parse(ipAddress), port);
         }
 
-        public async Task Listen(CancellationToken cancellationToken)
+        public async Task Listen()
         {
+            if (IsListening || _tcpListener != null) throw new InvalidOperationException($"The server is currently running on '{_tcpListener.LocalEndpoint}'.  You must stop the server first.");
+            _tcpListener = new TcpListener(IPAddress.Parse(IpAddress), Port);
+            _listenCts = new CancellationTokenSource();
             _tcpListener.Start();
             IsListening = true;
             OnStarted(_tcpListener.LocalEndpoint.ToString());
             WriteLine($"listening on {_tcpListener.LocalEndpoint}...");
-            while (!cancellationToken.IsCancellationRequested)
+            while (!_listenCts.Token.IsCancellationRequested)
             {
                 var newCLient = await _tcpListener.AcceptTcpClientAsync();
                 var clientId = Guid.NewGuid().ToString();
                 _clients.Add(clientId, newCLient);
                 OnClientConnected(clientId);
-                var _ = ListenToClientAsync(clientId, newCLient, cancellationToken);
+                var _ = ListenToClientAsync(clientId, newCLient);
                 WriteLine($"Added client {_clients.Count}...");
             }
             WriteLine("no longer listening...");
@@ -57,10 +61,20 @@ namespace Networking
 
         public async Task Stop()
         {
+            if (_tcpListener == null) throw new InvalidOperationException($"The server is not curently running.");
             await Task.Yield();
+            foreach (var client in _clients)
+            {
+                client.Value.Close();
+            }
+            _clients.Clear();
+            _listenCts.Cancel();
+            _tcpListener.Server.Close();
             _tcpListener.Stop();
-            IsListening = false;
+            _tcpListener = null;
+            StopDiagnostics();
             OnStopped();
+            IsListening = false;
         }
 
         public void StartDiagnostics()
@@ -79,18 +93,19 @@ namespace Networking
             OnStoppedDiagnostics();
         }
 
-        private async Task ListenToClientAsync(string clientId, TcpClient client, CancellationToken cancellationToken)
+        private async Task ListenToClientAsync(string clientId, TcpClient client)
         {
             var stream = client.GetStream();
             var buffer = new byte[1024];
-            while (!cancellationToken.IsCancellationRequested)
+            while (!_listenCts.Token.IsCancellationRequested)
             {
-                var bufferSize = await stream.ReadAsync(buffer, 0, buffer.Length, cancellationToken);
-                //if (bufferSize == 0)
-                //{
-                //    client.Close();
-                //    break;
-                //}
+                var bufferSize = await stream.ReadAsync(buffer, 0, buffer.Length, _listenCts.Token);
+                if (bufferSize == 0)
+                {
+                    client.Close();
+                    OnClientDisconnected(clientId);
+                    break;
+                }
                 var data = new byte[bufferSize];
                 Array.Copy(buffer, data, bufferSize);
                 buffer.Clear();
@@ -103,24 +118,24 @@ namespace Networking
             WriteLine("stopped listening on client xyz...");
         }
 
-        private async Task PrintDiagnostics(CancellationToken cancellationToken)
+        private async Task PrintDiagnostics(CancellationToken cancellationToken, int intervalSeconds = 30)
         {
             var builder = new StringBuilder();
             while (!cancellationToken.IsCancellationRequested)
             {
-                await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
-
                 builder.AppendLine($"Diagnostics: {DateTime.UtcNow}----------------------------");
                 foreach (var client in _clients)
                 {
-                    builder.AppendLine($"client '{client.Key}': {client.Value.Connected}\t{client.Value.Client.Connected}\t{client.Value.Client.Ttl}");
+                    builder.AppendLine($"client '{client.Key}':\t{client.Value.Connected}\t{client.Value.Client.Connected}");
                 }
                 OnDiagnosticRun(builder.ToString());
                 builder.Clear();
+                await Task.Delay(TimeSpan.FromSeconds(intervalSeconds), cancellationToken);
             }
         }
 
         protected virtual void OnClientConnected(string clientId) => ClientConnected?.Invoke(clientId);
+        protected virtual void OnClientDisconnected(string clientId) => ClientDisconnected?.Invoke(clientId);
         protected virtual void OnMessageReceived(string clientId, string message) => MessageReceived?.Invoke(clientId, message);
         protected virtual void OnStarted(string endpoint) => Started?.Invoke(endpoint);
         protected virtual void OnStopped() => Stopped?.Invoke();

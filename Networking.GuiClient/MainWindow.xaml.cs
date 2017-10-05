@@ -7,13 +7,13 @@ namespace Networking.GuiClient
     {
         private readonly MainWindowViewModel _viewModel = new MainWindowViewModel();
 
-        public MainWindow()
+        public MainWindow(ClientControl clientControl, ServerControl serverControl)
         {
             InitializeComponent();
             DataContext = _viewModel;
 
-            ClientContentControl.Content = new ClientControl();
-            ServerContentControl.Content = new ServerControl();
+            ClientContentControl.Content = clientControl;
+            ServerContentControl.Content = serverControl;
         }
     }
 }

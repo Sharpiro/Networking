@@ -16,7 +16,7 @@ namespace Networking.ConsoleApp
                 var tokenSource = new CancellationTokenSource();
 
                 var server = new Server(ipAddress, port);
-                await server.Listen(tokenSource.Token);
+                await server.Listen();
                 server.StartDiagnostics();
                 Console.WriteLine("done....");
             }
