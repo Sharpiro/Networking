@@ -13,65 +13,134 @@ namespace Networking
 {
     public class Server
     {
-        private readonly TcpListener _tcpListener;
-        private readonly List<TcpClient> _clients = new List<TcpClient>();
-        private Task _diagnosticTask;
+        private TcpListener _tcpListener;
+        private readonly Dictionary<string, TcpClient> _clients = new Dictionary<string, TcpClient>(StringComparer.InvariantCultureIgnoreCase);
+        private CancellationTokenSource _diagnosticsCts;
+        private CancellationTokenSource _listenCts;
+
+        public string IpAddress { get; set; }
+        public int Port { get; set; }
+        public bool DiagnosticsRunning => !_diagnosticsCts?.IsCancellationRequested ?? false;
+        public bool IsListening { get; private set; }
+
+        public event Action<string> ClientConnected;
+        public event Action<string> ClientDisconnected;
+        public event Action<string, string> MessageReceived;
+        public event Action<string> Started;
+        public event Action Stopped;
+        public event Action DiagnosticsStarted;
+        public event Action DiagnosticsStopped;
+        public event Action<string> DiagnosticRun;
 
         public Server(string ipAddress, int port)
         {
-            _tcpListener = new TcpListener(IPAddress.Parse(ipAddress), port);
+            IpAddress = ipAddress ?? throw new ArgumentNullException(nameof(ipAddress));
+            Port = port > 0 && port < 65536 ? port : throw new ArgumentOutOfRangeException(nameof(port));
         }
 
-        public async Task Listen(CancellationToken cancellationToken)
+        public async Task Listen()
         {
+            if (IsListening || _tcpListener != null) throw new InvalidOperationException($"The server is currently running on '{_tcpListener.LocalEndpoint}'.  You must stop the server first.");
+            _tcpListener = new TcpListener(IPAddress.Parse(IpAddress), Port);
+            _listenCts = new CancellationTokenSource();
             _tcpListener.Start();
-            _diagnosticTask = PrintDiagnostics(cancellationToken);
+            IsListening = true;
+            OnStarted(_tcpListener.LocalEndpoint.ToString());
             WriteLine($"listening on {_tcpListener.LocalEndpoint}...");
-            while (!cancellationToken.IsCancellationRequested)
+            while (!_listenCts.Token.IsCancellationRequested)
             {
                 var newCLient = await _tcpListener.AcceptTcpClientAsync();
-
-                _clients.Add(newCLient);
-                var listenTask = ListenToClientAsync(newCLient, cancellationToken);
+                var clientId = Guid.NewGuid().ToString();
+                _clients.Add(clientId, newCLient);
+                OnClientConnected(clientId);
+                var _ = ListenToClientAsync(clientId, newCLient);
                 WriteLine($"Added client {_clients.Count}...");
             }
             WriteLine("no longer listening...");
         }
 
-        private async Task ListenToClientAsync(TcpClient client, CancellationToken cancellationToken)
+        public async Task Stop()
+        {
+            if (_tcpListener == null) throw new InvalidOperationException($"The server is not curently running.");
+            await Task.Yield();
+            foreach (var client in _clients)
+            {
+                client.Value.Close();
+            }
+            _clients.Clear();
+            _listenCts.Cancel();
+            _tcpListener.Server.Close();
+            _tcpListener.Stop();
+            _tcpListener = null;
+            StopDiagnostics();
+            OnStopped();
+            IsListening = false;
+        }
+
+        public void StartDiagnostics()
+        {
+            if (!IsListening) return;
+            if (!_diagnosticsCts?.IsCancellationRequested ?? false) return;
+            _diagnosticsCts = new CancellationTokenSource();
+            var _ = PrintDiagnostics(_diagnosticsCts.Token);
+            OnStartedDiagnostics();
+        }
+
+        public void StopDiagnostics()
+        {
+            if (!IsListening) return;
+            _diagnosticsCts?.Cancel();
+            OnStoppedDiagnostics();
+        }
+
+        private async Task ListenToClientAsync(string clientId, TcpClient client)
         {
             var stream = client.GetStream();
             var buffer = new byte[1024];
-            while (!cancellationToken.IsCancellationRequested)
+            while (!_listenCts.Token.IsCancellationRequested)
             {
-                var bufferSize = await stream.ReadAsync(buffer, 0, buffer.Length, cancellationToken);
-                //if (bufferSize == 0)
-                //{
-                //    client.Close();
-                //    break;
-                //}
+                var bufferSize = await stream.ReadAsync(buffer, 0, buffer.Length, _listenCts.Token);
+                if (bufferSize == 0)
+                {
+                    client.Close();
+                    OnClientDisconnected(clientId);
+                    break;
+                }
                 var data = new byte[bufferSize];
                 Array.Copy(buffer, data, bufferSize);
                 buffer.Clear();
                 var stringData = Encoding.UTF8.GetString(data);
                 var byteData = string.Join(string.Empty, data.Select(b => b.ToString("X2")));
+                var message = $"{byteData} - {stringData} - {DateTime.UtcNow}";
                 WriteLine($"{byteData} - {stringData} - {DateTime.UtcNow}");
+                OnMessageReceived(clientId, message);
             }
             WriteLine("stopped listening on client xyz...");
         }
 
-        private async Task PrintDiagnostics(CancellationToken cancellationToken)
+        private async Task PrintDiagnostics(CancellationToken cancellationToken, int intervalSeconds = 30)
         {
+            var builder = new StringBuilder();
             while (!cancellationToken.IsCancellationRequested)
             {
-                await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
-
-                WriteLine($"Diagnostics: {DateTime.UtcNow}----------------------------");
-                for (var i = 0; i < _clients.Count; i++)
+                builder.AppendLine($"Diagnostics: {DateTime.UtcNow}----------------------------");
+                foreach (var client in _clients)
                 {
-                    WriteLine($"client '{i}': {_clients[i].Connected}\t{_clients[i].Client.Connected}\t{_clients[i].Client.Ttl}");
+                    builder.AppendLine($"client '{client.Key}':\t{client.Value.Connected}\t{client.Value.Client.Connected}");
                 }
+                OnDiagnosticRun(builder.ToString());
+                builder.Clear();
+                await Task.Delay(TimeSpan.FromSeconds(intervalSeconds), cancellationToken);
             }
         }
+
+        protected virtual void OnClientConnected(string clientId) => ClientConnected?.Invoke(clientId);
+        protected virtual void OnClientDisconnected(string clientId) => ClientDisconnected?.Invoke(clientId);
+        protected virtual void OnMessageReceived(string clientId, string message) => MessageReceived?.Invoke(clientId, message);
+        protected virtual void OnStarted(string endpoint) => Started?.Invoke(endpoint);
+        protected virtual void OnStopped() => Stopped?.Invoke();
+        protected virtual void OnStartedDiagnostics() => DiagnosticsStarted?.Invoke();
+        protected virtual void OnStoppedDiagnostics() => DiagnosticsStopped?.Invoke();
+        protected virtual void OnDiagnosticRun(string diagnostics) => DiagnosticRun?.Invoke(diagnostics);
     }
 }

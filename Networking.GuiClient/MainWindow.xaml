@@ -4,25 +4,13 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="MainWindow" Height="350" Width="525">
+        Title="{Binding Title}" Height="800" Width="1200" WindowStartupLocation="CenterScreen">
     <Grid>
-        <StackPanel Margin="15">
-            <StackPanel Orientation="Horizontal">
-                <TextBox Text="{Binding IpAddress, UpdateSourceTrigger=PropertyChanged}" Width="100" LostFocus="UIElement_OnLostFocus"/>
-                <TextBox Text ="{Binding Port, UpdateSourceTrigger=PropertyChanged}" Width="100" Margin="15,0,0,0" LostFocus="UIElement_OnLostFocus"/>
-            </StackPanel>
-            <StackPanel Orientation="Horizontal">
-                <Button Content="Connect" Width="75" Click="ConnectButton_OnClick"/>
-                <Button Content="Disconnect" Width="75" Click="DisconnectButton_OnClick" Margin="5,0,0,0"/>
-                <TextBlock Text="IsConnected:" Margin="15,0,0,0" Width="75"/>
-                <TextBox Text="{Binding IsConnected}" IsReadOnly="true" />
-            </StackPanel>
-            <StackPanel Margin="0,15,0,0">
-                <TextBox Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}"/>
-            </StackPanel>
-            <StackPanel Orientation="Horizontal">
-                <Button Content="Send Message" Width="100" Click="SendMessageButton_OnClick" Margin="5,0,0,0"/>
-            </StackPanel>
-        </StackPanel>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition></ColumnDefinition>
+            <ColumnDefinition></ColumnDefinition>
+        </Grid.ColumnDefinitions>
+        <ContentControl Grid.Column="0" Name="ClientContentControl"/>
+        <ContentControl Grid.Column="1" Name="ServerContentControl"/>
     </Grid>
 </Window>
