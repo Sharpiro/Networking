@@ -14,11 +14,7 @@ namespace Networking.GuiClient.ViewModels
             get => _isListening;
             set { _isListening = value; OnPropertyChanged(); }
         }
-        public string OutputLog
-        {
-            get => LogEntries.StringJoin(Environment.NewLine);
-            //set { _outputLog = value; OnPropertyChanged(); }
-        }
+        public string OutputLog => LogEntries.StringJoin(Environment.NewLine);
 
         public ServerControlViewModel()
         {

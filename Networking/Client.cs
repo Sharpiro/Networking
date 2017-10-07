@@ -23,7 +23,6 @@ namespace Networking
         {
             IpAddress = ipAddress ?? throw new ArgumentNullException(nameof(ipAddress));
             Port = port > 0 && port < 65536 ? port : throw new ArgumentOutOfRangeException(nameof(port));
-            _client = new TcpClient();
         }
 
         public async Task Connect()

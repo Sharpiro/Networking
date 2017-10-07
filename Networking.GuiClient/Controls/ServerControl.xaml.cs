@@ -4,6 +4,7 @@ using System.Windows;
 using Networking.GuiClient.Tools;
 using Networking.GuiClient.ViewModels;
 using System.Threading.Tasks;
+using System.Windows.Controls;
 using Networking.Tools;
 
 namespace Networking.GuiClient.Controls
@@ -40,7 +41,7 @@ namespace Networking.GuiClient.Controls
             {
                 _listenCts = new CancellationTokenSource();
                 //_server.Listen().ContinueWith(failedTask => HandleTaskError(failedTask), TaskContinuationOptions.OnlyOnFaulted);
-                _server.Listen().ContinueWith(failedTask => HandleTaskError(failedTask), CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.FromCurrentSynchronizationContext());
+                _server.Listen().ContinueWith(HandleTaskError, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.FromCurrentSynchronizationContext());
             }
             catch (Exception ex)
             {
@@ -50,7 +51,7 @@ namespace Networking.GuiClient.Controls
 
         private void HandleTaskError(Task task)
         {
-            var aggregateMessage = task.Exception.GetShallowExceptionMessages();
+            var aggregateMessage = task.Exception?.GetShallowExceptionMessages() ?? "task exception was null";
             _viewModel.LogEntries.Add(aggregateMessage);
             MessageBox.Show(this.GetParentWindowRecurs(), aggregateMessage);
         }
@@ -82,7 +83,6 @@ namespace Networking.GuiClient.Controls
                 {
                     _server.StopDiagnostics();
                 }
-                OutputLogTextBox.ScrollToEnd();
             }
             catch (Exception ex)
             {
@@ -105,6 +105,11 @@ namespace Networking.GuiClient.Controls
             {
                 IsEnabled = true;
             }
+        }
+
+        private void OutputLogTextBox_OnTextChanged(object sender, TextChangedEventArgs e)
+        {
+            OutputLogTextBox.ScrollToEnd();
         }
     }
 }

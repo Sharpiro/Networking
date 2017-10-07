@@ -46,6 +46,7 @@
     <Compile Include="Client.cs" />
     <Compile Include="Server.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="TcpSocket.cs" />
     <Compile Include="Tools\Extensions.cs" />
   </ItemGroup>
   <ItemGroup>

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Configuration;
 using System.Threading.Tasks;
 
 namespace Networking.Client
@@ -9,13 +10,13 @@ namespace Networking.Client
         {
             try
             {
-                
-                const string ipAddress = "40.76.93.179";
-                //const string ipAddress = "127.0.0.1";
-                const int port = 500;
 
-                var client = new TheClient(ipAddress, port);
-                await client.Connect();
+                var ipAddress = ConfigurationManager.AppSettings["ipaddress"];
+                var port = int.Parse(ConfigurationManager.AppSettings["port"]);
+
+                var socket = new TcpSocket();
+                var receivedSocket = await socket.ListenAsync(ipAddress, port);
+                //await client.ConnectAsync(ipAddress, port);
                 Console.WriteLine("done....");
             }
             catch (Exception ex)

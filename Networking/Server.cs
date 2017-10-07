@@ -46,7 +46,6 @@ namespace Networking
             _tcpListener.Start();
             IsListening = true;
             OnStarted(_tcpListener.LocalEndpoint.ToString());
-            WriteLine($"listening on {_tcpListener.LocalEndpoint}...");
             while (!_listenCts.Token.IsCancellationRequested)
             {
                 var newCLient = await _tcpListener.AcceptTcpClientAsync();
@@ -54,14 +53,13 @@ namespace Networking
                 _clients.Add(clientId, newCLient);
                 OnClientConnected(clientId);
                 var _ = ListenToClientAsync(clientId, newCLient);
-                WriteLine($"Added client {_clients.Count}...");
             }
-            WriteLine("no longer listening...");
         }
 
         public async Task Stop()
         {
-            if (_tcpListener == null) throw new InvalidOperationException($"The server is not curently running.");
+            if (_tcpListener == null) return;
+            //if (_tcpListener == null) throw new InvalidOperationException($"The server is not curently running.");
             await Task.Yield();
             foreach (var client in _clients)
             {
@@ -77,12 +75,12 @@ namespace Networking
             IsListening = false;
         }
 
-        public void StartDiagnostics()
+        public void StartDiagnostics(int intervalSeconds = 30)
         {
             if (!IsListening) return;
             if (!_diagnosticsCts?.IsCancellationRequested ?? false) return;
             _diagnosticsCts = new CancellationTokenSource();
-            var _ = PrintDiagnostics(_diagnosticsCts.Token);
+            var _ = PrintDiagnostics(_diagnosticsCts.Token, intervalSeconds);
             OnStartedDiagnostics();
         }
 
@@ -112,13 +110,12 @@ namespace Networking
                 var stringData = Encoding.UTF8.GetString(data);
                 var byteData = string.Join(string.Empty, data.Select(b => b.ToString("X2")));
                 var message = $"{byteData} - {stringData} - {DateTime.UtcNow}";
-                WriteLine($"{byteData} - {stringData} - {DateTime.UtcNow}");
                 OnMessageReceived(clientId, message);
             }
             WriteLine("stopped listening on client xyz...");
         }
 
-        private async Task PrintDiagnostics(CancellationToken cancellationToken, int intervalSeconds = 30)
+        private async Task PrintDiagnostics(CancellationToken cancellationToken, int intervalSeconds)
         {
             var builder = new StringBuilder();
             while (!cancellationToken.IsCancellationRequested)
