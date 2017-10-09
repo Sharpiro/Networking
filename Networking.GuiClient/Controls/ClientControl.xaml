@@ -28,6 +28,9 @@
             <StackPanel Orientation="Horizontal">
                 <Button Content="Send Message" Width="100" Click="SendMessageButton_OnClick" Margin="0,5,0,0"/>
             </StackPanel>
+            <StackPanel Margin="0,15,0,0">
+                <TextBox Name="OutputLogTextBox" Text="{Binding OutputLog, Mode=OneWay}" Height="125" IsReadOnly="true" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" TextChanged="OutputLogTextBox_TextChanged"/>
+            </StackPanel>
         </StackPanel>
     </Grid>
 </UserControl>

@@ -1,0 +1,1 @@
+(ip.src==x.x.x.x || ip.dst==x.x.x.x) && (tcp.port eq 500)

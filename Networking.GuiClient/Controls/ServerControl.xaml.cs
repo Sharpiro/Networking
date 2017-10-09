@@ -20,19 +20,25 @@ namespace Networking.GuiClient.Controls
             InitializeComponent();
             DataContext = _viewModel = viewModel;
             _server = server;
-            Initialize();
         }
 
-        private void Initialize()
+        private void UserControl_Loaded(object sender, RoutedEventArgs e)
         {
-            _server.MessageReceived += (clientId, message) => { _viewModel.LogEntries.Add($"{clientId}: {message}"); };
-            _server.ClientConnected += clientId => { _viewModel.LogEntries.Add($"client '{clientId}' connected"); };
-            _server.ClientDisconnected += clientId => { _viewModel.LogEntries.Add($"client '{clientId}' disconnected"); };
-            _server.Started += endpoint => { _viewModel.LogEntries.Add($"server started on {endpoint}"); };
-            _server.Stopped += () => { _viewModel.LogEntries.Add("server stopped"); };
-            _server.DiagnosticsStarted += () => { _viewModel.LogEntries.Add("diagnostics started"); };
-            _server.DiagnosticsStopped += () => { _viewModel.LogEntries.Add("diagnostics stopped"); };
-            _server.DiagnosticRun += diagnostics => { _viewModel.LogEntries.Add(diagnostics); };
+            try
+            {
+                _server.MessageReceived += (clientId, message) => { _viewModel.LogEntries.Add($"{clientId}: {message}"); };
+                _server.ClientConnected += clientId => { _viewModel.LogEntries.Add($"client '{clientId}' connected"); };
+                _server.ClientDisconnected += clientId => { _viewModel.LogEntries.Add($"client '{clientId}' disconnected"); };
+                _server.Started += endpoint => { _viewModel.LogEntries.Add($"server started on {endpoint}"); };
+                _server.Stopped += () => { _viewModel.LogEntries.Add("server stopped"); };
+                _server.DiagnosticsStarted += () => { _viewModel.LogEntries.Add("diagnostics started"); };
+                _server.DiagnosticsStopped += () => { _viewModel.LogEntries.Add("diagnostics stopped"); };
+                _server.DiagnosticRun += diagnostics => { _viewModel.LogEntries.Add(diagnostics); };
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException("An error occurred when calling user control 'Loaded' event", ex);
+            }
         }
 
         private void ListenButton_OnClick(object sender, RoutedEventArgs e)
@@ -40,12 +46,11 @@ namespace Networking.GuiClient.Controls
             try
             {
                 _listenCts = new CancellationTokenSource();
-                //_server.Listen().ContinueWith(failedTask => HandleTaskError(failedTask), TaskContinuationOptions.OnlyOnFaulted);
                 _server.Listen().ContinueWith(HandleTaskError, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.FromCurrentSynchronizationContext());
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this.GetParentWindowRecurs(), ex.Message);
+                MessageBox.Show(this.GetParentWindow(), ex.Message);
             }
         }
 
@@ -53,7 +58,7 @@ namespace Networking.GuiClient.Controls
         {
             var aggregateMessage = task.Exception?.GetShallowExceptionMessages() ?? "task exception was null";
             _viewModel.LogEntries.Add(aggregateMessage);
-            MessageBox.Show(this.GetParentWindowRecurs(), aggregateMessage);
+            MessageBox.Show(this.GetParentWindow(), aggregateMessage);
         }
 
         private async void UIElement_OnLostFocus(object sender, RoutedEventArgs e)
@@ -67,7 +72,7 @@ namespace Networking.GuiClient.Controls
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this.GetParentWindowRecurs(), ex.Message);
+                MessageBox.Show(this.GetParentWindow(), ex.Message);
             }
         }
 
@@ -86,7 +91,7 @@ namespace Networking.GuiClient.Controls
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this.GetParentWindowRecurs(), ex.Message);
+                MessageBox.Show(this.GetParentWindow(), ex.Message);
             }
         }
 
@@ -99,7 +104,7 @@ namespace Networking.GuiClient.Controls
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this.GetParentWindowRecurs(), ex.Message);
+                MessageBox.Show(this.GetParentWindow(), ex.Message);
             }
             finally
             {
@@ -109,7 +114,14 @@ namespace Networking.GuiClient.Controls
 
         private void OutputLogTextBox_OnTextChanged(object sender, TextChangedEventArgs e)
         {
-            OutputLogTextBox.ScrollToEnd();
+            try
+            {
+                OutputLogTextBox.ScrollToEnd();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this.GetParentWindow(), ex.Message);
+            }
         }
     }
 }

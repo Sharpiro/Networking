@@ -10,18 +10,20 @@ namespace Networking
         private readonly Socket _mySocket;
         private Socket _connectedSocket;
 
+        public Socket MySocket => _mySocket;
+
         public TcpSocket()
         {
-            _mySocket = new Socket(SocketType.Stream, ProtocolType.Tcp);
+            _mySocket = new Socket(AddressFamily.InterNetwork,SocketType.Stream, ProtocolType.Tcp);
         }
 
         public Task<Socket> ListenAsync(string ipAddress, int port)
         {
             return Task.Run(() =>
             {
-                _mySocket.Bind(new IPEndPoint(IPAddress.Parse(ipAddress), port));
-                _mySocket.Listen(1000);
-                var asyncResult = _mySocket.BeginAccept(AcceptCallback, new { });
+                MySocket.Bind(new IPEndPoint(IPAddress.Parse(ipAddress), port));
+                MySocket.Listen(1000);
+                var asyncResult = MySocket.BeginAccept(AcceptCallback, new { });
                 var wasSuccess = asyncResult.AsyncWaitHandle.WaitOne(TimeSpan.FromSeconds(10000));
                 if (!wasSuccess) throw new InvalidOperationException("An error occurred trying to connect to host");
                 return _connectedSocket;
@@ -32,7 +34,7 @@ namespace Networking
         {
             await Task.Run(() =>
             {
-                var asyncResult = _mySocket.BeginConnect(IPAddress.Parse(ipAddress), port, ConnectCallback, new { });
+                var asyncResult = MySocket.BeginConnect(IPAddress.Parse(ipAddress), port, ConnectCallback, new { });
                 var wasSuccess = asyncResult.AsyncWaitHandle.WaitOne(TimeSpan.FromSeconds(10));
                 if (!wasSuccess) throw new InvalidOperationException("An error occurred trying to connect to host");
             });
@@ -40,12 +42,12 @@ namespace Networking
 
         private void ConnectCallback(IAsyncResult asyncResult)
         {
-            _mySocket.EndConnect(asyncResult);
+            MySocket.EndConnect(asyncResult);
         }
 
         private void AcceptCallback(IAsyncResult asyncResult)
         {
-            _connectedSocket = _mySocket.EndAccept(asyncResult);
+            _connectedSocket = MySocket.EndAccept(asyncResult);
         }
     }
 }

@@ -1,4 +1,8 @@
-﻿namespace Networking.GuiClient.ViewModels
+﻿using Networking.Tools;
+using System;
+using System.Collections.ObjectModel;
+
+namespace Networking.GuiClient.ViewModels
 {
     public class TcpViewModel : BaseViewModel
     {
@@ -21,6 +25,13 @@
         {
             get => _port;
             set { _port = value; OnPropertyChanged(); }
+        }
+        public ObservableCollection<string> LogEntries { get; } = new ObservableCollection<string>();
+        public string OutputLog => LogEntries.StringJoin(Environment.NewLine);
+
+        public TcpViewModel()
+        {
+            LogEntries.CollectionChanged += (sender, args) => OnPropertyChanged(nameof(OutputLog));
         }
     }
 }

@@ -5,7 +5,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Networking.GuiClient.Controls"
              mc:Ignorable="d" 
-             Background="White">
+             Background="White" Loaded="UserControl_Loaded">
     <Grid>
         <StackPanel Margin="15">
             <StackPanel>

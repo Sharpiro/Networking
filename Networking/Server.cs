@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -8,13 +7,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using Networking.Tools;
 using static System.Console;
+using Networking.Models;
 
 namespace Networking
 {
     public class Server
     {
         private TcpListener _tcpListener;
-        private readonly Dictionary<string, TcpClient> _clients = new Dictionary<string, TcpClient>(StringComparer.InvariantCultureIgnoreCase);
+        private readonly Dictionary<string, ClientData> _clients = new Dictionary<string, ClientData>(StringComparer.InvariantCultureIgnoreCase);
         private CancellationTokenSource _diagnosticsCts;
         private CancellationTokenSource _listenCts;
 
@@ -50,7 +50,7 @@ namespace Networking
             {
                 var newCLient = await _tcpListener.AcceptTcpClientAsync();
                 var clientId = Guid.NewGuid().ToString();
-                _clients.Add(clientId, newCLient);
+                _clients.Add(clientId, new ClientData(clientId, newCLient));
                 OnClientConnected(clientId);
                 var _ = ListenToClientAsync(clientId, newCLient);
             }
@@ -61,9 +61,9 @@ namespace Networking
             if (_tcpListener == null) return;
             //if (_tcpListener == null) throw new InvalidOperationException($"The server is not curently running.");
             await Task.Yield();
-            foreach (var client in _clients)
+            foreach (var clientData in _clients)
             {
-                client.Value.Close();
+                clientData.Value.TcpClient.Close();
             }
             _clients.Clear();
             _listenCts.Cancel();
@@ -108,8 +108,8 @@ namespace Networking
                 Array.Copy(buffer, data, bufferSize);
                 buffer.Clear();
                 var stringData = Encoding.UTF8.GetString(data);
-                var byteData = string.Join(string.Empty, data.Select(b => b.ToString("X2")));
-                var message = $"{byteData} - {stringData} - {DateTime.UtcNow}";
+                //var byteData = string.Join(string.Empty, data.Select(b => b.ToString("X2")));
+                var message = $"{stringData} - {DateTime.UtcNow}";
                 OnMessageReceived(clientId, message);
             }
             WriteLine("stopped listening on client xyz...");
@@ -123,7 +123,7 @@ namespace Networking
                 builder.AppendLine($"Diagnostics: {DateTime.UtcNow}----------------------------");
                 foreach (var client in _clients)
                 {
-                    builder.AppendLine($"client '{client.Key}':\t{client.Value.Connected}\t{client.Value.Client.Connected}");
+                    builder.AppendLine($"'{client.Key}':\t'{client.Value.Connected}'\t'{client.Value.LocalEndPoint}'\t'{client.Value.RemoteEndPoint}'");
                 }
                 OnDiagnosticRun(builder.ToString());
                 builder.Clear();

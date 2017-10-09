@@ -13,15 +13,17 @@ namespace Networking.GuiClient.Controls
         public ClientControl(TheClient client, ClientControlViewModel viewModel)
         {
             InitializeComponent();
-            DataContext = _viewModel= viewModel;
+            DataContext = _viewModel = viewModel;
             _client = client;
             Initialize();
         }
 
         private void Initialize()
         {
-            _client.MessageReceived += message => Console.WriteLine(message);
-            _client.ConnectionChanged += () => _viewModel.IsConnected = _client.IsConnected; ;
+            _client.MessageReceived += message => _viewModel.LogEntries.Add(message);
+            _client.Connected += () => _viewModel.LogEntries.Add("connected");
+            _client.Disconnected += () => _viewModel.LogEntries.Add("disconnected");
+            _client.ConnectionChanged += () => _viewModel.IsConnected = _client.IsConnected;
         }
 
         private async void ConnectButton_OnClick(object sender, RoutedEventArgs e)
@@ -34,7 +36,7 @@ namespace Networking.GuiClient.Controls
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this.GetParentWindowRecurs(), ex.Message);
+                MessageBox.Show(this.GetParentWindow(), ex.Message);
             }
             finally
             {
@@ -54,7 +56,7 @@ namespace Networking.GuiClient.Controls
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this.GetParentWindowRecurs(), ex.Message);
+                MessageBox.Show(this.GetParentWindow(), ex.Message);
             }
             finally
             {
@@ -72,7 +74,7 @@ namespace Networking.GuiClient.Controls
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this.GetParentWindowRecurs(), ex.Message);
+                MessageBox.Show(this.GetParentWindow(), ex.Message);
             }
             finally
             {
@@ -91,7 +93,19 @@ namespace Networking.GuiClient.Controls
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this.GetParentWindowRecurs(), ex.Message);
+                MessageBox.Show(this.GetParentWindow(), ex.Message);
+            }
+        }
+
+        private void OutputLogTextBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+        {
+            try
+            {
+                OutputLogTextBox.ScrollToEnd();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this.GetParentWindow(), ex.Message);
             }
         }
     }
