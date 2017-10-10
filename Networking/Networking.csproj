@@ -43,8 +43,10 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BaseSocket.cs" />
     <Compile Include="Client.cs" />
-    <Compile Include="Models\ClientData.cs" />
+    <Compile Include="Models\SocketInfo.cs" />
+    <Compile Include="Models\SocketMessage.cs" />
     <Compile Include="Server.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TcpSocket.cs" />

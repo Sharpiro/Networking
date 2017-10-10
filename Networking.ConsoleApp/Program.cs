@@ -17,9 +17,9 @@ namespace Networking.ConsoleApp
                 var server = new Server(ipAddress, port);
 
                 server.MessageReceived += (clientId, message) => { WriteLine($"{clientId}: {message}"); };
-                server.ClientConnected += clientId => { WriteLine($"client '{clientId}' connected"); };
+                server.ClientAccepted += clientId => { WriteLine($"client '{clientId}' connected"); };
                 server.ClientDisconnected += clientId => { WriteLine($"client '{clientId}' disconnected"); };
-                server.Started += endpoint => { WriteLine($"server started on {endpoint}"); };
+                server.Started += (ipAddressX, portX) => { WriteLine($"server started on '{ipAddressX}:{portX}'"); };
                 server.Stopped += () => { WriteLine("server stopped"); };
                 server.DiagnosticsStarted += () => { WriteLine("diagnostics started"); };
                 server.DiagnosticsStopped += () => { WriteLine("diagnostics stopped"); };
@@ -27,7 +27,7 @@ namespace Networking.ConsoleApp
 
 
                 //var _ = Task.Delay(TimeSpan.FromSeconds(5)).ContinueWith(t => server.StartDiagnostics(60));
-                await server.Listen();
+                await server.ListenAsync();
             }
             catch (Exception ex)
             {

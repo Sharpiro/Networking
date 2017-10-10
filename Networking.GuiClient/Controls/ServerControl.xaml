@@ -21,6 +21,7 @@
                 <Button Content="Start" Width="75" Click="ListenButton_OnClick"/>
                 <Button Content="Stop" Width="75" Click="StopButton_Click" Margin="5,0,0,0"/>
                 <Button Content="Toggle Diagnostics" Width="110" Margin="5,0,0,0" Click="ToggleDiagnostics_OnClick"/>
+                <Button Content="Clear" Width="75" Margin="5,0,0,0" Click="ClearButton_Click"/>
             </StackPanel>
             <StackPanel Orientation="Horizontal" Margin="0,15,0,0">
                 <TextBlock Text="Listening:" Margin="15,0,0,0" Width="75"/>

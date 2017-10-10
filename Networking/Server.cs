@@ -11,10 +11,10 @@ using Networking.Models;
 
 namespace Networking
 {
-    public class Server
+    public class Server : BaseSocket
     {
         private TcpListener _tcpListener;
-        private readonly Dictionary<string, ClientData> _clients = new Dictionary<string, ClientData>(StringComparer.InvariantCultureIgnoreCase);
+        private readonly Dictionary<string, SocketInfo> _clients = new Dictionary<string, SocketInfo>(StringComparer.InvariantCultureIgnoreCase);
         private CancellationTokenSource _diagnosticsCts;
         private CancellationTokenSource _listenCts;
 
@@ -23,10 +23,10 @@ namespace Networking
         public bool DiagnosticsRunning => !_diagnosticsCts?.IsCancellationRequested ?? false;
         public bool IsListening { get; private set; }
 
-        public event Action<string> ClientConnected;
+        public event Action<string> ClientAccepted;
         public event Action<string> ClientDisconnected;
-        public event Action<string, string> MessageReceived;
-        public event Action<string> Started;
+        public event Action<string, SocketMessage> MessageReceived;
+        public event Action<string, int> Started;
         public event Action Stopped;
         public event Action DiagnosticsStarted;
         public event Action DiagnosticsStopped;
@@ -38,25 +38,25 @@ namespace Networking
             Port = port > 0 && port < 65536 ? port : throw new ArgumentOutOfRangeException(nameof(port));
         }
 
-        public async Task Listen()
+        public async Task ListenAsync()
         {
             if (IsListening || _tcpListener != null) throw new InvalidOperationException($"The server is currently running on '{_tcpListener.LocalEndpoint}'.  You must stop the server first.");
             _tcpListener = new TcpListener(IPAddress.Parse(IpAddress), Port);
             _listenCts = new CancellationTokenSource();
             _tcpListener.Start();
             IsListening = true;
-            OnStarted(_tcpListener.LocalEndpoint.ToString());
+            OnStarted(IpAddress, Port);
             while (!_listenCts.Token.IsCancellationRequested)
             {
                 var newCLient = await _tcpListener.AcceptTcpClientAsync();
                 var clientId = Guid.NewGuid().ToString();
-                _clients.Add(clientId, new ClientData(clientId, newCLient));
-                OnClientConnected(clientId);
+                _clients.Add(clientId, new SocketInfo(clientId, newCLient.Client));
+                OnClientAccepted(clientId);
                 var _ = ListenToClientAsync(clientId, newCLient);
             }
         }
 
-        public async Task Stop()
+        public async Task StopAsync()
         {
             if (_tcpListener == null) return;
             //if (_tcpListener == null) throw new InvalidOperationException($"The server is not curently running.");
@@ -80,7 +80,7 @@ namespace Networking
             if (!IsListening) return;
             if (!_diagnosticsCts?.IsCancellationRequested ?? false) return;
             _diagnosticsCts = new CancellationTokenSource();
-            var _ = PrintDiagnostics(_diagnosticsCts.Token, intervalSeconds);
+            var _ = PrintDiagnosticsAsync(_diagnosticsCts.Token, intervalSeconds);
             OnStartedDiagnostics();
         }
 
@@ -108,14 +108,19 @@ namespace Networking
                 Array.Copy(buffer, data, bufferSize);
                 buffer.Clear();
                 var stringData = Encoding.UTF8.GetString(data);
-                //var byteData = string.Join(string.Empty, data.Select(b => b.ToString("X2")));
-                var message = $"{stringData} - {DateTime.UtcNow}";
-                OnMessageReceived(clientId, message);
+                var message = new SocketMessage
+                {
+                    MessageType = MessageType.PlainText,
+                    Data = data,
+                    ReceivedUtc = DateTime.UtcNow
+                };
+                if (message.MessageType == MessageType.Command) HandleCommand(message);
+                else OnMessageReceived(clientId, message);
             }
             WriteLine("stopped listening on client xyz...");
         }
 
-        private async Task PrintDiagnostics(CancellationToken cancellationToken, int intervalSeconds)
+        private async Task PrintDiagnosticsAsync(CancellationToken cancellationToken, int intervalSeconds)
         {
             var builder = new StringBuilder();
             while (!cancellationToken.IsCancellationRequested)
@@ -131,10 +136,10 @@ namespace Networking
             }
         }
 
-        protected virtual void OnClientConnected(string clientId) => ClientConnected?.Invoke(clientId);
+        protected virtual void OnClientAccepted(string clientId) => ClientAccepted?.Invoke(clientId);
         protected virtual void OnClientDisconnected(string clientId) => ClientDisconnected?.Invoke(clientId);
-        protected virtual void OnMessageReceived(string clientId, string message) => MessageReceived?.Invoke(clientId, message);
-        protected virtual void OnStarted(string endpoint) => Started?.Invoke(endpoint);
+        protected virtual void OnMessageReceived(string clientId, SocketMessage message) => MessageReceived?.Invoke(clientId, message);
+        protected virtual void OnStarted(string ip, int port) => Started?.Invoke(ip, port);
         protected virtual void OnStopped() => Stopped?.Invoke();
         protected virtual void OnStartedDiagnostics() => DiagnosticsStarted?.Invoke();
         protected virtual void OnStoppedDiagnostics() => DiagnosticsStopped?.Invoke();

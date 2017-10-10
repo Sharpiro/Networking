@@ -6,6 +6,7 @@ using Networking.GuiClient.ViewModels;
 using System.Threading.Tasks;
 using System.Windows.Controls;
 using Networking.Tools;
+using System.Text;
 
 namespace Networking.GuiClient.Controls
 {
@@ -26,10 +27,10 @@ namespace Networking.GuiClient.Controls
         {
             try
             {
-                _server.MessageReceived += (clientId, message) => { _viewModel.LogEntries.Add($"{clientId}: {message}"); };
-                _server.ClientConnected += clientId => { _viewModel.LogEntries.Add($"client '{clientId}' connected"); };
+                _server.MessageReceived += (clientId, message) => { _viewModel.LogEntries.Add($"{clientId}: {Encoding.UTF8.GetString(message.Data)}"); };
+                _server.ClientAccepted += clientId => { _viewModel.LogEntries.Add($"client '{clientId}' connected"); };
                 _server.ClientDisconnected += clientId => { _viewModel.LogEntries.Add($"client '{clientId}' disconnected"); };
-                _server.Started += endpoint => { _viewModel.LogEntries.Add($"server started on {endpoint}"); };
+                _server.Started += (ipAddress, port) => { _viewModel.LogEntries.Add($"server started on '{ipAddress}:{port}'"); };
                 _server.Stopped += () => { _viewModel.LogEntries.Add("server stopped"); };
                 _server.DiagnosticsStarted += () => { _viewModel.LogEntries.Add("diagnostics started"); };
                 _server.DiagnosticsStopped += () => { _viewModel.LogEntries.Add("diagnostics stopped"); };
@@ -46,7 +47,7 @@ namespace Networking.GuiClient.Controls
             try
             {
                 _listenCts = new CancellationTokenSource();
-                _server.Listen().ContinueWith(HandleTaskError, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.FromCurrentSynchronizationContext());
+                _server.ListenAsync().ContinueWith(HandleTaskError, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.FromCurrentSynchronizationContext());
             }
             catch (Exception ex)
             {
@@ -66,7 +67,7 @@ namespace Networking.GuiClient.Controls
             try
             {
                 if (_viewModel.IpAddress == _server.IpAddress && _viewModel.Port == _server.Port) return;
-                await _server.Stop();
+                await _server.StopAsync();
                 _server.IpAddress = _viewModel.IpAddress;
                 _server.Port = _viewModel.Port;
             }
@@ -100,7 +101,7 @@ namespace Networking.GuiClient.Controls
             try
             {
                 IsEnabled = false;
-                await _server.Stop();
+                await _server.StopAsync();
             }
             catch (Exception ex)
             {
@@ -117,6 +118,18 @@ namespace Networking.GuiClient.Controls
             try
             {
                 OutputLogTextBox.ScrollToEnd();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this.GetParentWindow(), ex.Message);
+            }
+        }
+
+        private void ClearButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                _viewModel.LogEntries.Clear();
             }
             catch (Exception ex)
             {

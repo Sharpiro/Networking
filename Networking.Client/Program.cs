@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Configuration;
-using System.Net;
 using System.Threading.Tasks;
 
 namespace Networking.Client
@@ -11,19 +10,24 @@ namespace Networking.Client
         {
             try
             {
-
                 var ipAddress = ConfigurationManager.AppSettings["ipaddress"];
                 var port = int.Parse(ConfigurationManager.AppSettings["port"]);
+                var socket1 = new TheClient(ipAddress, port);
+                socket1.Connected += (ip, portX) => Console.WriteLine($"connected to '{ip}:{portX}'");
+                socket1.Disconnected += (ip, portX) => Console.WriteLine($"disconnected from '{ip}:{portX}'");
 
-                var socket1 = new TcpSocket();
-                await socket1.ConnectAsync(ipAddress, port);
-                var localEndPoint = (socket1.MySocket.LocalEndPoint as IPEndPoint);
-                var localIp = localEndPoint.Address.ToString();
-                //await socket1.ListenAsync(localIp, localEndPoint.Port);
-                var socket2 = new TcpSocket();
-                var receivedSocket = await socket2.ListenAsync(localIp, localEndPoint.Port);
-                //await socket2.ConnectAsync(ipAddress, port);
-                Console.WriteLine("done....");
+                //connect to remote
+                await socket1.ConnectAsync();
+
+                //listen on local endpoint used to connect to the previous remote
+                var socketOnelocalEndPoint = socket1.LocalEndPoint;
+                var socketOnelocalIp = socketOnelocalEndPoint.Address.ToString();
+                var socketOnelocalPort = socketOnelocalEndPoint.Port;
+                var socket2 = new Server(socketOnelocalIp, socketOnelocalPort);
+                socket2.Started += (ip, portX) => Console.WriteLine($"started listening on '{ip}:{portX}'");
+                socket2.Stopped += () => Console.WriteLine("stopped listening");
+                socket2.ClientAccepted += (clientId) => Console.WriteLine($"accepted client '{clientId}'");
+                await socket2.ListenAsync();
             }
             catch (Exception ex)
             {
@@ -31,6 +35,7 @@ namespace Networking.Client
             }
             finally
             {
+                Console.WriteLine("done....");
                 Console.ReadKey();
             }
         }

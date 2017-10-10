@@ -2,6 +2,7 @@
 using System.Windows;
 using Networking.GuiClient.Tools;
 using Networking.GuiClient.ViewModels;
+using System.Text;
 
 namespace Networking.GuiClient.Controls
 {
@@ -20,9 +21,9 @@ namespace Networking.GuiClient.Controls
 
         private void Initialize()
         {
-            _client.MessageReceived += message => _viewModel.LogEntries.Add(message);
-            _client.Connected += () => _viewModel.LogEntries.Add("connected");
-            _client.Disconnected += () => _viewModel.LogEntries.Add("disconnected");
+            _client.MessageReceived += message => _viewModel.LogEntries.Add(Encoding.UTF8.GetString(message.Data));
+            _client.Connected += (ipAddress, port) => _viewModel.LogEntries.Add($"connected to '{ipAddress}:{port}'");
+            _client.Disconnected += (ipAddress, port) => _viewModel.LogEntries.Add($"disconnected from '{ipAddress}:{port}'");
             _client.ConnectionChanged += () => _viewModel.IsConnected = _client.IsConnected;
         }
 
@@ -32,7 +33,7 @@ namespace Networking.GuiClient.Controls
             {
                 if (_client.IsConnected) throw new InvalidOperationException("Cannot connect while already connected");
                 IsEnabled = false;
-                await _client.Connect();
+                await _client.ConnectAsync();
             }
             catch (Exception ex)
             {

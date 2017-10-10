@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Networking.Models;
+using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -11,13 +12,15 @@ namespace Networking
         private TcpClient _client;
         public string IpAddress { get; set; }
         public int Port { get; set; }
+        public IPEndPoint LocalEndPoint => (IPEndPoint)_client.Client.LocalEndPoint;
+        public IPEndPoint RemoteEndPoint => (IPEndPoint)_client.Client.RemoteEndPoint;
 
         public bool IsConnected => _client?.Connected ?? false;
 
-        public event Action Connected;
-        public event Action Disconnected;
+        public event Action<string, int> Connected;
+        public event Action<string, int> Disconnected;
         public event Action ConnectionChanged;
-        public event Action<string> MessageReceived;
+        public event Action<SocketMessage> MessageReceived;
 
         public TheClient(string ipAddress, int port)
         {
@@ -25,14 +28,14 @@ namespace Networking
             Port = port > 0 && port < 65536 ? port : throw new ArgumentOutOfRangeException(nameof(port));
         }
 
-        public async Task Connect()
+        public async Task ConnectAsync()
         {
             if (_client == null)
             {
                 _client = new TcpClient();
             }
             await _client.ConnectAsync(IPAddress.Parse(IpAddress), Port);
-            OnConnected();
+            OnConnected(IpAddress, Port);
             var _ = ReceiveMessagesAsync();
         }
 
@@ -42,7 +45,7 @@ namespace Networking
             await Task.Yield();
             _client.Close();
             _client = null;
-            OnDisconnected();
+            OnDisconnected(IpAddress, Port);
         }
 
         public async Task SendMessage(string message)
@@ -61,23 +64,28 @@ namespace Networking
             var bufferSize = await stream.ReadAsync(buffer, 0, buffer.Length);
             if (bufferSize == 0) await Disconnect();
             var data = new byte[bufferSize];
-            var message = Encoding.UTF8.GetString(data);
+            var message = new SocketMessage
+            {
+                MessageType = MessageType.PlainText,
+                Data = data,
+                ReceivedUtc = DateTime.UtcNow
+            };
             OnMessageReceived(message);
         }
 
-        protected virtual void OnDisconnected()
+        protected virtual void OnDisconnected(string ipAddress, int port)
         {
-            Disconnected?.Invoke();
+            Disconnected?.Invoke(ipAddress, port);
             OnConnectionChanged();
         }
 
-        protected virtual void OnConnected()
+        protected virtual void OnConnected(string ipAddress, int port)
         {
-            Connected?.Invoke();
+            Connected?.Invoke(ipAddress, port);
             OnConnectionChanged();
         }
 
         protected virtual void OnConnectionChanged() => ConnectionChanged?.Invoke();
-        protected virtual void OnMessageReceived(string message) => MessageReceived.Invoke(message);
+        protected virtual void OnMessageReceived(SocketMessage message) => MessageReceived.Invoke(message);
     }
 }
