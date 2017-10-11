@@ -61,6 +61,12 @@
     <Compile Include="Controls\ClientControl.xaml.cs">
       <DependentUpon>ClientControl.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Controls\ClientServerControl.xaml.cs">
+      <DependentUpon>ClientServerControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\PeerControl.xaml.cs">
+      <DependentUpon>PeerControl.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Controls\ServerControl.xaml.cs">
       <DependentUpon>ServerControl.xaml</DependentUpon>
     </Compile>
@@ -71,6 +77,14 @@
     <Compile Include="ViewModels\ServerControlViewModel.cs" />
     <Compile Include="ViewModels\TcpViewModel.cs" />
     <Page Include="Controls\ClientControl.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Controls\ClientServerControl.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Controls\PeerControl.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

@@ -22,7 +22,10 @@ namespace Networking.GuiClient
             {
                 IsEnabled = serverEnabled
             };
-            var mainWindow = new MainWindow(clientControl, serverControl);
+
+            var clientServerControl = new ClientServerControl(clientControl, serverControl);
+            var peerControl = new PeerControl();
+            var mainWindow = new MainWindow(clientServerControl, peerControl);
             MainWindow.ShowDialog();
         }
     }

@@ -4,13 +4,11 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="{Binding Title}" MinHeight="400" MinWidth="650" Height="400" Width="800" WindowStartupLocation="CenterScreen">
+        Title="{Binding Title}" MinHeight="400" MinWidth="500" Height="400" Width="800" WindowStartupLocation="CenterScreen">
     <Grid>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition></ColumnDefinition>
-            <ColumnDefinition></ColumnDefinition>
-        </Grid.ColumnDefinitions>
-        <ContentControl Grid.Column="0" Name="ClientContentControl"/>
-        <ContentControl Grid.Column="1" Name="ServerContentControl"/>
+        <TabControl Name="PageTabControl"  Margin="15">
+            <TabItem Name="PeerTab" Header="Peer"/>
+            <TabItem Name="ClientServerTab" Header="Client &amp; Server"/>
+        </TabControl>
     </Grid>
 </Window>
