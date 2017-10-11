@@ -3,6 +3,7 @@ using System.Windows;
 using Networking.GuiClient.Tools;
 using Networking.GuiClient.ViewModels;
 using System.Text;
+using Networking.Models;
 
 namespace Networking.GuiClient.Controls
 {
@@ -50,10 +51,36 @@ namespace Networking.GuiClient.Controls
             try
             {
                 if (!_client.IsConnected) throw new InvalidOperationException("client not connected");
-                if (string.IsNullOrEmpty(_viewModel.InputText))
-                    throw new NullReferenceException("Input must have a value");
+                if (string.IsNullOrEmpty(_viewModel.InputText)) throw new NullReferenceException("Input must have a value");
                 IsEnabled = false;
-                await _client.SendMessage(_viewModel.InputText);
+
+                await _client.SendMessageAsync(_viewModel.InputText);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this.GetParentWindow(), ex.Message);
+            }
+            finally
+            {
+                IsEnabled = true;
+            }
+        }
+
+        private async void SendCommandButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (!_client.IsConnected) throw new InvalidOperationException("client not connected");
+                if (string.IsNullOrEmpty(_viewModel.InputText)) throw new NullReferenceException("Input must have a value");
+                IsEnabled = false;
+
+                var message = new SocketMessage
+                {
+                    MessageType = MessageType.Command,
+                    Data = Encoding.UTF8.GetBytes(_viewModel.InputText),
+                    SentUtc = DateTime.UtcNow
+                };
+                await _client.SendMessageAsync(message);
             }
             catch (Exception ex)
             {
@@ -71,7 +98,7 @@ namespace Networking.GuiClient.Controls
             {
                 if (!_client.IsConnected) throw new InvalidOperationException("client not connected");
                 IsEnabled = false;
-                await _client.Disconnect();
+                await _client.DisconnectAsync();
             }
             catch (Exception ex)
             {
@@ -88,7 +115,7 @@ namespace Networking.GuiClient.Controls
             try
             {
                 if (_viewModel.IpAddress == _client.IpAddress && _viewModel.Port == _client.Port) return;
-                _client?.Disconnect();
+                _client?.DisconnectAsync();
                 _client.IpAddress = _viewModel.IpAddress;
                 _client.Port = _viewModel.Port;
             }

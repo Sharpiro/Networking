@@ -92,10 +92,11 @@ namespace Networking
 
         private void AcceptCallback(IAsyncResult asyncResult)
         {
-            var clientId = Guid.NewGuid().ToString();
-            var socket = _mySocket.EndAccept(asyncResult);
-            _sockets.Add(clientId, new SocketInfo(clientId, socket));
-            OnClientAccepted(clientId);
+            throw new NotImplementedException();
+            //var clientId = Guid.NewGuid().ToString();
+            //var socket = _mySocket.EndAccept(asyncResult);
+            //_sockets.Add(clientId, new SocketInfo(clientId, socket));
+            //OnClientAccepted(clientId);
         }
 
         protected virtual void OnClientAccepted(string clientId) => ClientAccepted?.Invoke(clientId);

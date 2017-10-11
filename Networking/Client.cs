@@ -1,15 +1,21 @@
 ﻿using Networking.Models;
+using Networking.Tools;
+using Newtonsoft.Json;
 using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Networking
 {
-    public class TheClient
+    public class TheClient : BaseSocket
     {
         private TcpClient _client;
+        private CancellationTokenSource _receiveCts;
+
+        public TcpClient TcpClient => _client;
         public string IpAddress { get; set; }
         public int Port { get; set; }
         public IPEndPoint LocalEndPoint => (IPEndPoint)_client.Client.LocalEndPoint;
@@ -28,6 +34,13 @@ namespace Networking
             Port = port > 0 && port < 65536 ? port : throw new ArgumentOutOfRangeException(nameof(port));
         }
 
+        public TheClient(TcpClient tcpClient)
+        {
+            _client = tcpClient ?? throw new ArgumentNullException(nameof(tcpClient));
+            IpAddress = RemoteEndPoint.Address.ToString();
+            Port = RemoteEndPoint.Port;
+        }
+
         public async Task ConnectAsync()
         {
             if (_client == null)
@@ -36,10 +49,11 @@ namespace Networking
             }
             await _client.ConnectAsync(IPAddress.Parse(IpAddress), Port);
             OnConnected(IpAddress, Port);
+            _receiveCts = new CancellationTokenSource();
             var _ = ReceiveMessagesAsync();
         }
 
-        public async Task Disconnect()
+        public async Task DisconnectAsync()
         {
             //if (!IsConnected) return;
             await Task.Yield();
@@ -48,12 +62,26 @@ namespace Networking
             OnDisconnected(IpAddress, Port);
         }
 
-        public async Task SendMessage(string message)
+        public Task SendMessageAsync(string message)
         {
-            //if (!IsConnected) throw new InvalidOperationException("Cannot send message, client is not conencted");
-            if (string.IsNullOrEmpty(message)) throw new ArgumentNullException(nameof(message));
+            var messageDto = new SocketMessage
+            {
+                Data = Encoding.UTF8.GetBytes(message),
+                MessageType = MessageType.PlainText,
+                SentUtc = DateTime.UtcNow
+            };
+            return SendMessageAsync(messageDto);
+        }
+
+        public async Task SendMessageAsync(SocketMessage message)
+        {
+            if (!IsConnected) throw new InvalidOperationException("Cannot send message, client is not conencted");
+            if (message == null) throw new ArgumentNullException(nameof(message));
+
             var stream = _client.GetStream();
-            var buffer = Encoding.UTF8.GetBytes(message);
+            var messageJson = JsonConvert.SerializeObject(message);
+
+            var buffer = Encoding.UTF8.GetBytes(messageJson);
             await stream.WriteAsync(buffer, 0, buffer.Length);
         }
 
@@ -61,16 +89,18 @@ namespace Networking
         {
             var stream = _client.GetStream();
             var buffer = new byte[1024];
-            var bufferSize = await stream.ReadAsync(buffer, 0, buffer.Length);
-            if (bufferSize == 0) await Disconnect();
-            var data = new byte[bufferSize];
-            var message = new SocketMessage
+            while (!_receiveCts.IsCancellationRequested)
             {
-                MessageType = MessageType.PlainText,
-                Data = data,
-                ReceivedUtc = DateTime.UtcNow
-            };
-            OnMessageReceived(message);
+                var bufferSize = await stream.ReadAsync(buffer, 0, buffer.Length);
+                if (bufferSize == 0) await DisconnectAsync();
+                var data = new byte[bufferSize];
+                Array.Copy(buffer, data, bufferSize);
+                buffer.Clear();
+                var jsonData = Encoding.UTF8.GetString(data);
+                var message = JsonConvert.DeserializeObject<SocketMessage>(jsonData);
+                message.ReceivedUtc = DateTime.UtcNow;
+                OnMessageReceived(message);
+            }
         }
 
         protected virtual void OnDisconnected(string ipAddress, int port)

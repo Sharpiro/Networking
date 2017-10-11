@@ -1,20 +1,20 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Networking.Tools;
-using static System.Console;
 using Networking.Models;
+using System.Linq;
+using Newtonsoft.Json;
 
 namespace Networking
 {
     public class Server : BaseSocket
     {
         private TcpListener _tcpListener;
-        private readonly Dictionary<string, SocketInfo> _clients = new Dictionary<string, SocketInfo>(StringComparer.InvariantCultureIgnoreCase);
+        private readonly ClientList _clients = new ClientList();
         private CancellationTokenSource _diagnosticsCts;
         private CancellationTokenSource _listenCts;
 
@@ -25,7 +25,7 @@ namespace Networking
 
         public event Action<string> ClientAccepted;
         public event Action<string> ClientDisconnected;
-        public event Action<string, SocketMessage> MessageReceived;
+        public event Action<SocketMessage> MessageReceived;
         public event Action<string, int> Started;
         public event Action Stopped;
         public event Action DiagnosticsStarted;
@@ -46,13 +46,22 @@ namespace Networking
             _tcpListener.Start();
             IsListening = true;
             OnStarted(IpAddress, Port);
-            while (!_listenCts.Token.IsCancellationRequested)
+            while (!_listenCts.IsCancellationRequested)
             {
-                var newCLient = await _tcpListener.AcceptTcpClientAsync();
+                TcpClient newClient;
+                try
+                {
+                    newClient = await _tcpListener.AcceptTcpClientAsync();
+                }
+                catch (ObjectDisposedException ex)
+                {
+                    if (!_listenCts.IsCancellationRequested) throw new InvalidOperationException($"Unexpected disposure of listening socket @ '{IpAddress}:{Port}'", ex);
+                    break;
+                }
                 var clientId = Guid.NewGuid().ToString();
-                _clients.Add(clientId, new SocketInfo(clientId, newCLient.Client));
+                _clients.Add(clientId, new TheClient(newClient));
                 OnClientAccepted(clientId);
-                var _ = ListenToClientAsync(clientId, newCLient);
+                var _ = ListenToClientAsync(clientId, newClient);
             }
         }
 
@@ -61,9 +70,10 @@ namespace Networking
             if (_tcpListener == null) return;
             //if (_tcpListener == null) throw new InvalidOperationException($"The server is not curently running.");
             await Task.Yield();
-            foreach (var clientData in _clients)
+            foreach (var clientData in _clients.Where(c => c.IsConnected))
             {
-                clientData.Value.TcpClient.Close();
+                clientData.TcpClient.Client.Shutdown(SocketShutdown.Both);
+                clientData.TcpClient.Client.Close();
             }
             _clients.Clear();
             _listenCts.Cancel();
@@ -107,17 +117,13 @@ namespace Networking
                 var data = new byte[bufferSize];
                 Array.Copy(buffer, data, bufferSize);
                 buffer.Clear();
-                var stringData = Encoding.UTF8.GetString(data);
-                var message = new SocketMessage
-                {
-                    MessageType = MessageType.PlainText,
-                    Data = data,
-                    ReceivedUtc = DateTime.UtcNow
-                };
+                var jsonData = Encoding.UTF8.GetString(data);
+                var message = JsonConvert.DeserializeObject<SocketMessage>(jsonData);
+                message.ClientId = clientId;
+                message.ReceivedUtc = DateTime.UtcNow;
                 if (message.MessageType == MessageType.Command) HandleCommand(message);
-                else OnMessageReceived(clientId, message);
+                else OnMessageReceived(message);
             }
-            WriteLine("stopped listening on client xyz...");
         }
 
         private async Task PrintDiagnosticsAsync(CancellationToken cancellationToken, int intervalSeconds)
@@ -128,7 +134,7 @@ namespace Networking
                 builder.AppendLine($"Diagnostics: {DateTime.UtcNow}----------------------------");
                 foreach (var client in _clients)
                 {
-                    builder.AppendLine($"'{client.Key}':\t'{client.Value.Connected}'\t'{client.Value.LocalEndPoint}'\t'{client.Value.RemoteEndPoint}'");
+                    builder.AppendLine($"'{client.Id}':\t'{client.IsConnected}'\t'{client.LocalEndPoint}'\t'{client.RemoteEndPoint}'");
                 }
                 OnDiagnosticRun(builder.ToString());
                 builder.Clear();
@@ -136,9 +142,46 @@ namespace Networking
             }
         }
 
+        public async Task SendMessageAsync(string clientId, string message)
+        {
+            if (string.IsNullOrEmpty(clientId)) throw new ArgumentNullException(nameof(clientId));
+            if (string.IsNullOrEmpty(message)) throw new ArgumentNullException(nameof(message));
+            var client = _clients.Get(clientId);
+            if (client == null) throw new NullReferenceException($"Could not find client with id '{clientId}'");
+            var messageDto = new SocketMessage
+            {
+                Data = Encoding.UTF8.GetBytes(message),
+                SentUtc = DateTime.UtcNow,
+                MessageType = MessageType.PlainText
+            };
+            await SendMessageAsync(clientId, messageDto);
+        }
+
+        public async Task SendMessageAsync(string clientId, SocketMessage message)
+        {
+            if (string.IsNullOrEmpty(clientId)) throw new ArgumentNullException(nameof(clientId));
+            if (message == null) throw new ArgumentNullException(nameof(message));
+            var client = _clients.Get(clientId);
+            if (client == null) throw new NullReferenceException($"Could not find client with id '{clientId}'");
+            await client.SendMessageAsync(message);
+        }
+
+        private async Task SendPeerData(SocketMessage socketMessage)
+        {
+            var serializableList = _clients.GetSerializableList();
+            var json = JsonConvert.SerializeObject(serializableList);
+            var responseJson = new SocketMessage
+            {
+                Data = Encoding.UTF8.GetBytes(json),
+                SentUtc = DateTime.UtcNow,
+                MessageType = MessageType.PlainText
+            };
+            await SendMessageAsync(socketMessage.ClientId, responseJson);
+        }
+
         protected virtual void OnClientAccepted(string clientId) => ClientAccepted?.Invoke(clientId);
         protected virtual void OnClientDisconnected(string clientId) => ClientDisconnected?.Invoke(clientId);
-        protected virtual void OnMessageReceived(string clientId, SocketMessage message) => MessageReceived?.Invoke(clientId, message);
+        protected virtual void OnMessageReceived(SocketMessage message) => MessageReceived?.Invoke(message);
         protected virtual void OnStarted(string ip, int port) => Started?.Invoke(ip, port);
         protected virtual void OnStopped() => Stopped?.Invoke();
         protected virtual void OnStartedDiagnostics() => DiagnosticsStarted?.Invoke();

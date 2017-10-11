@@ -34,5 +34,13 @@ namespace Networking.Tools
             }
             return messageBuilder.ToString();
         }
+
+        public static TValue Get<TKey, TValue>([NotNull]this Dictionary<TKey, TValue> dictionary, TKey key) where TValue : class
+        {
+            if (dictionary == null) throw new ArgumentNullException(nameof(dictionary));
+
+            var itemExists = dictionary.TryGetValue(key, out TValue tValue);
+            return itemExists ? tValue : default;
+        }
     }
 }

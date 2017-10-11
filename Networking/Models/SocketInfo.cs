@@ -7,17 +7,17 @@ namespace Networking.Models
     public class SocketInfo
     {
         public string Id { get; set; }
-        public Socket TcpClient { get; set; }
+        public TheClient Client { get; set; }
         public EndPoint LocalEndPoint { get; set; }
         public EndPoint RemoteEndPoint { get; set; }
-        public bool Connected => TcpClient?.Connected ?? false;
+        public bool IsConnected => Client?.TcpClient.Connected ?? false;
 
-        public SocketInfo(string id, Socket socket)
+        public SocketInfo(string id, TheClient tcpClient)
         {
             Id = id ?? throw new ArgumentNullException(nameof(id));
-            TcpClient = socket ?? throw new ArgumentNullException(nameof(socket));
-            LocalEndPoint = socket.LocalEndPoint;
-            RemoteEndPoint = socket.RemoteEndPoint;
+            Client = tcpClient ?? throw new ArgumentNullException(nameof(tcpClient));
+            LocalEndPoint = tcpClient.TcpClient.Client.LocalEndPoint;
+            RemoteEndPoint = tcpClient.TcpClient.Client.RemoteEndPoint;
         }
     }
 }

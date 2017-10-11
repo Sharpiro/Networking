@@ -1,6 +1,5 @@
-﻿using Networking.GuiClient.Controls;
-using Networking.GuiClient.ViewModels;
-using System.Configuration;
+﻿using Networking.GuiClient.Tools;
+using Ninject;
 using System.Windows;
 
 namespace Networking.GuiClient
@@ -9,24 +8,10 @@ namespace Networking.GuiClient
     {
         protected override void OnStartup(StartupEventArgs e)
         {
-            var ipAddress = ConfigurationManager.AppSettings["ipaddress"];
-            var port = int.Parse(ConfigurationManager.AppSettings["port"]);
-            var clientEnabled = bool.Parse(ConfigurationManager.AppSettings["clientEnabled"]);
-            var serverEnabled = bool.Parse(ConfigurationManager.AppSettings["serverEnabled"]);
+            var kernel = InjectionModule.BuildKernelFromConfig();
 
-            var clientControl = new ClientControl(new TheClient(ipAddress, port), new ClientControlViewModel { IpAddress = ipAddress, Port = port })
-            {
-                IsEnabled = clientEnabled
-            };
-            var serverControl = new ServerControl(new Server(ipAddress, port), new ServerControlViewModel { IpAddress = ipAddress, Port = port })
-            {
-                IsEnabled = serverEnabled
-            };
-
-            var clientServerControl = new ClientServerControl(clientControl, serverControl);
-            var peerControl = new PeerControl();
-            var mainWindow = new MainWindow(clientServerControl, peerControl);
-            MainWindow.ShowDialog();
+            var mainWindow = kernel.Get<MainWindow>();
+            mainWindow.ShowDialog();
         }
     }
 }

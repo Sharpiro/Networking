@@ -19,22 +19,27 @@ namespace Networking.GuiClient.Controls
         public ServerControl(Server server, ServerControlViewModel viewModel)
         {
             InitializeComponent();
-            DataContext = _viewModel = viewModel;
-            _server = server;
+
+            _server = server ?? throw new ArgumentNullException(nameof(server));
+            DataContext = _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
+
+            Initialize();
         }
 
-        private void UserControl_Loaded(object sender, RoutedEventArgs e)
+        private void Initialize()
         {
             try
             {
-                _server.MessageReceived += (clientId, message) => { _viewModel.LogEntries.Add($"{clientId}: {Encoding.UTF8.GetString(message.Data)}"); };
-                _server.ClientAccepted += clientId => { _viewModel.LogEntries.Add($"client '{clientId}' connected"); };
-                _server.ClientDisconnected += clientId => { _viewModel.LogEntries.Add($"client '{clientId}' disconnected"); };
-                _server.Started += (ipAddress, port) => { _viewModel.LogEntries.Add($"server started on '{ipAddress}:{port}'"); };
-                _server.Stopped += () => { _viewModel.LogEntries.Add("server stopped"); };
-                _server.DiagnosticsStarted += () => { _viewModel.LogEntries.Add("diagnostics started"); };
-                _server.DiagnosticsStopped += () => { _viewModel.LogEntries.Add("diagnostics stopped"); };
-                _server.DiagnosticRun += diagnostics => { _viewModel.LogEntries.Add(diagnostics); };
+                _server.MessageReceived += (message) => _viewModel.LogEntries.Add($"{message.ClientId}: {Encoding.UTF8.GetString(message.Data)}");
+                _server.ClientAccepted += clientId => _viewModel.LogEntries.Add($"client '{clientId}' connected");
+                _server.ClientDisconnected += clientId => _viewModel.LogEntries.Add($"client '{clientId}' disconnected");
+                _server.Started += (ipAddress, port) => _viewModel.LogEntries.Add($"server started on '{ipAddress}:{port}'");
+                _server.Stopped += () => _viewModel.LogEntries.Add("server stopped");
+                _server.DiagnosticsStarted += () => _viewModel.LogEntries.Add("diagnostics started");
+                _server.DiagnosticsStopped += () => _viewModel.LogEntries.Add("diagnostics stopped");
+                _server.DiagnosticRun += diagnostics => _viewModel.LogEntries.Add(diagnostics);
+                _server.CommandReceived += (clientId, commandName) => _viewModel.LogEntries.Add($"'{clientId}' received command '{commandName}'");
+                _server.CommandInvoked += (clientId, commandName) => _viewModel.LogEntries.Add($"'{clientId}' invoked command '{commandName}'");
             }
             catch (Exception ex)
             {
