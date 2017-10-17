@@ -49,9 +49,12 @@
   <ItemGroup>
     <Compile Include="BaseSocket.cs" />
     <Compile Include="Client.cs" />
+    <Compile Include="ClientDictionary.cs" />
     <Compile Include="ClientList.cs" />
+    <Compile Include="Models\ClientListModel.cs" />
     <Compile Include="Models\SocketInfo.cs" />
     <Compile Include="Models\SocketMessage.cs" />
+    <Compile Include="Node.cs" />
     <Compile Include="Server.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TcpSocket.cs" />

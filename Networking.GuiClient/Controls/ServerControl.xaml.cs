@@ -30,16 +30,18 @@ namespace Networking.GuiClient.Controls
         {
             try
             {
+                _server.MessageLogged += message => _viewModel.LogEntries.Add(message);
                 _server.MessageReceived += (message) => _viewModel.LogEntries.Add($"{message.ClientId}: {Encoding.UTF8.GetString(message.Data)}");
-                _server.ClientAccepted += clientId => _viewModel.LogEntries.Add($"client '{clientId}' connected");
+                _server.ClientHandshake += clientId => _viewModel.LogEntries.Add($"client '{clientId}' handshake completed");
+                _server.ClientAccepted += () => _viewModel.LogEntries.Add($"a client was accepted");
                 _server.ClientDisconnected += clientId => _viewModel.LogEntries.Add($"client '{clientId}' disconnected");
                 _server.Started += (ipAddress, port) => _viewModel.LogEntries.Add($"server started on '{ipAddress}:{port}'");
                 _server.Stopped += () => _viewModel.LogEntries.Add("server stopped");
                 _server.DiagnosticsStarted += () => _viewModel.LogEntries.Add("diagnostics started");
                 _server.DiagnosticsStopped += () => _viewModel.LogEntries.Add("diagnostics stopped");
                 _server.DiagnosticRun += diagnostics => _viewModel.LogEntries.Add(diagnostics);
-                _server.CommandReceived += (clientId, commandName) => _viewModel.LogEntries.Add($"'{clientId}' received command '{commandName}'");
-                _server.CommandInvoked += (clientId, commandName) => _viewModel.LogEntries.Add($"'{clientId}' invoked command '{commandName}'");
+                _server.CommandReceived += (message) => _viewModel.LogEntries.Add($"'{message.ClientId}' received command '{message.Title}'");
+                //_server.CommandInvoked += (clientId, commandName) => _viewModel.LogEntries.Add($"'{clientId}' invoked command '{commandName}'");
             }
             catch (Exception ex)
             {

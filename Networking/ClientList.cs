@@ -1,4 +1,4 @@
-﻿using System;
+﻿using Networking.Models;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,11 +7,11 @@ namespace Networking
 {
     public class ClientList : IEnumerable<TheClient>
     {
-        private readonly Dictionary<string, TheClient> _clients = new Dictionary<string, TheClient>(StringComparer.InvariantCultureIgnoreCase);
+        private readonly List<TheClient> _clients = new List<TheClient>();
 
         public void Add(string clientId, TheClient theClient)
         {
-            _clients.Add(clientId, theClient);
+            _clients.Add(theClient);
         }
 
         public void Clear()
@@ -21,25 +21,24 @@ namespace Networking
 
         public TheClient Get(string key)
         {
-            var itemExists = _clients.TryGetValue(key, out TheClient client);
-            return itemExists ? client : default;
+            return _clients.SingleOrDefault(c => c.Id == key);
         }
 
-        public object GetSerializableList()
+        public IEnumerable<ClientListModel> GetSerializableList()
         {
-            return _clients.Select(c => new
+            return _clients.Where(c => c.IsConnected).Select(c => new ClientListModel
             {
-                Id = c.Key,
-                LocalIpAddress = c.Value.LocalEndPoint.Address.ToString(),
-                LocalPort = c.Value.LocalEndPoint.Port,
-                RemoteIpAddress = c.Value.RemoteEndPoint.Address.ToString(),
-                RemotePort = c.Value.RemoteEndPoint.Port
+                Id = c.Id,
+                LocalIpAddress = c.LocalEndPoint.Address.ToString(),
+                LocalPort = c.LocalEndPoint.Port,
+                RemoteIpAddress = c.RemoteEndPoint.Address.ToString(),
+                RemotePort = c.RemoteEndPoint.Port
             });
         }
 
         public IEnumerator<TheClient> GetEnumerator()
         {
-            return _clients.Select(c => c.Value).GetEnumerator();
+            return _clients.GetEnumerator();
         }
 
         IEnumerator IEnumerable.GetEnumerator()

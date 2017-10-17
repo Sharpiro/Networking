@@ -30,7 +30,7 @@
                 <Button Content="Send Command" Width="100" Click="SendCommandButton_Click" Margin="5,0,0,0"/>
             </StackPanel>
             <StackPanel Margin="0,15,0,0">
-                <TextBox Name="OutputLogTextBox" Text="{Binding OutputLog, Mode=OneWay}" Height="125" IsReadOnly="true" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" TextChanged="OutputLogTextBox_TextChanged"/>
+                <TextBox Name="OutputLogTextBox" Text="{Binding OutputLog, Mode=OneWay}" Height="125" IsReadOnly="true" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" TextChanged="OutputLogTextBox_TextChanged"/>
             </StackPanel>
         </StackPanel>
     </Grid>

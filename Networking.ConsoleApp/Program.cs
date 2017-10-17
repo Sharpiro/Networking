@@ -16,8 +16,8 @@ namespace Networking.ConsoleApp
 
                 var server = new Server(ipAddress, port);
 
-                server.MessageReceived += ( message) => { WriteLine($"{message.ClientId}: {message}"); };
-                server.ClientAccepted += clientId => { WriteLine($"client '{clientId}' connected"); };
+                server.MessageReceived += (message) => { WriteLine($"{message.ClientId}: {message}"); };
+                server.ClientAccepted += () => { WriteLine($"a client was accepted"); };
                 server.ClientDisconnected += clientId => { WriteLine($"client '{clientId}' disconnected"); };
                 server.Started += (ipAddressX, portX) => { WriteLine($"server started on '{ipAddressX}:{portX}'"); };
                 server.Stopped += () => { WriteLine("server stopped"); };

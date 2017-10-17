@@ -28,7 +28,7 @@
                 <TextBox Text="{Binding IsListening}" IsReadOnly="true" />
             </StackPanel>
             <StackPanel Margin="0,15,0,0">
-                <TextBox Name="OutputLogTextBox" Text="{Binding OutputLog, Mode=OneWay}" Height="125" IsReadOnly="true" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" TextChanged="OutputLogTextBox_OnTextChanged"/>
+                <TextBox Name="OutputLogTextBox" Text="{Binding OutputLog, Mode=OneWay}" Height="125" IsReadOnly="true" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" TextChanged="OutputLogTextBox_OnTextChanged"/>
             </StackPanel>
         </StackPanel>
     </Grid>

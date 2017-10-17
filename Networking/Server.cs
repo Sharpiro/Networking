@@ -23,7 +23,8 @@ namespace Networking
         public bool DiagnosticsRunning => !_diagnosticsCts?.IsCancellationRequested ?? false;
         public bool IsListening { get; private set; }
 
-        public event Action<string> ClientAccepted;
+        public event Action ClientAccepted;
+        public event Action<string> ClientHandshake;
         public event Action<string> ClientDisconnected;
         public event Action<SocketMessage> MessageReceived;
         public event Action<string, int> Started;
@@ -48,20 +49,21 @@ namespace Networking
             OnStarted(IpAddress, Port);
             while (!_listenCts.IsCancellationRequested)
             {
-                TcpClient newClient;
+                TcpClient tcpClient;
                 try
                 {
-                    newClient = await _tcpListener.AcceptTcpClientAsync();
+                    tcpClient = await _tcpListener.AcceptTcpClientAsync();
                 }
                 catch (ObjectDisposedException ex)
                 {
                     if (!_listenCts.IsCancellationRequested) throw new InvalidOperationException($"Unexpected disposure of listening socket @ '{IpAddress}:{Port}'", ex);
                     break;
                 }
-                var clientId = Guid.NewGuid().ToString();
-                _clients.Add(clientId, new TheClient(newClient));
-                OnClientAccepted(clientId);
-                var _ = ListenToClientAsync(clientId, newClient);
+                //var clientId = Guid.NewGuid().ToString();
+                var newClient = new TheClient(tcpClient);
+                _clients.Add(null, newClient);
+                OnClientAccepted();
+                var _ = ListenToClientAsync(newClient);
             }
         }
 
@@ -101,17 +103,17 @@ namespace Networking
             OnStoppedDiagnostics();
         }
 
-        private async Task ListenToClientAsync(string clientId, TcpClient client)
+        private async Task ListenToClientAsync(TheClient client)
         {
-            var stream = client.GetStream();
+            var stream = client.TcpClient.GetStream();
             var buffer = new byte[1024];
             while (!_listenCts.Token.IsCancellationRequested)
             {
                 var bufferSize = await stream.ReadAsync(buffer, 0, buffer.Length, _listenCts.Token);
                 if (bufferSize == 0)
                 {
-                    client.Close();
-                    OnClientDisconnected(clientId);
+                    client.TcpClient.Close();
+                    OnClientDisconnected(client.Id);
                     break;
                 }
                 var data = new byte[bufferSize];
@@ -119,9 +121,12 @@ namespace Networking
                 buffer.Clear();
                 var jsonData = Encoding.UTF8.GetString(data);
                 var message = JsonConvert.DeserializeObject<SocketMessage>(jsonData);
-                message.ClientId = clientId;
+
+                if (client.Id == null) client.Id = message.ClientId;
+                //message.ClientId = client.Id;
+                //message.Client = client;
                 message.ReceivedUtc = DateTime.UtcNow;
-                if (message.MessageType == MessageType.Command) HandleCommand(message);
+                if (message.MessageType == MessageType.Command) OnCommandReceived(message);
                 else OnMessageReceived(message);
             }
         }
@@ -166,20 +171,37 @@ namespace Networking
             await client.SendMessageAsync(message);
         }
 
-        private async Task SendPeerData(SocketMessage socketMessage)
+        public async Task BroadcastMessageAsync(SocketMessage message)
+        {
+            if (message == null) throw new ArgumentNullException(nameof(message));
+            foreach (var client in _clients.Where(c => c.IsConnected))
+            {
+                await client.SendMessageAsync(message);
+            }
+        }
+
+        private async Task ConnectToPeers(SocketMessage socketMessage)
         {
             var serializableList = _clients.GetSerializableList();
             var json = JsonConvert.SerializeObject(serializableList);
             var responseJson = new SocketMessage
             {
+                Title = nameof(ConnectToPeers),
                 Data = Encoding.UTF8.GetBytes(json),
                 SentUtc = DateTime.UtcNow,
-                MessageType = MessageType.PlainText
+                MessageType = MessageType.Command
             };
-            await SendMessageAsync(socketMessage.ClientId, responseJson);
+            await BroadcastMessageAsync(responseJson);
         }
 
-        protected virtual void OnClientAccepted(string clientId) => ClientAccepted?.Invoke(clientId);
+        private async Task HandShake(SocketMessage message)
+        {
+            OnClientHandshake(message.ClientId);
+            await ConnectToPeers(message);
+        }
+
+        protected virtual void OnClientAccepted() => ClientAccepted?.Invoke();
+        protected virtual void OnClientHandshake(string clientId) => ClientHandshake?.Invoke(clientId);
         protected virtual void OnClientDisconnected(string clientId) => ClientDisconnected?.Invoke(clientId);
         protected virtual void OnMessageReceived(SocketMessage message) => MessageReceived?.Invoke(message);
         protected virtual void OnStarted(string ip, int port) => Started?.Invoke(ip, port);

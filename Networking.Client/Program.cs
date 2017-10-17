@@ -26,7 +26,8 @@ namespace Networking.Client
                 var socket2 = new Server(socketOnelocalIp, socketOnelocalPort);
                 socket2.Started += (ip, portX) => Console.WriteLine($"started listening on '{ip}:{portX}'");
                 socket2.Stopped += () => Console.WriteLine("stopped listening");
-                socket2.ClientAccepted += (clientId) => Console.WriteLine($"accepted client '{clientId}'");
+                socket2.ClientHandshake += (clientId) => Console.WriteLine($"accepted client '{clientId}'");
+                socket2.ClientAccepted += () => Console.WriteLine($"a client was accepted");
                 await socket2.ListenAsync();
             }
             catch (Exception ex)

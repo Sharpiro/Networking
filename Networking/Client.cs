@@ -2,6 +2,8 @@
 using Networking.Tools;
 using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -48,9 +50,24 @@ namespace Networking
                 _client = new TcpClient();
             }
             await _client.ConnectAsync(IPAddress.Parse(IpAddress), Port);
+            await HandShake();
             OnConnected(IpAddress, Port);
             _receiveCts = new CancellationTokenSource();
             var _ = ReceiveMessagesAsync();
+        }
+
+        public async Task HandShake()
+        {
+            Id = Guid.NewGuid().ToString();
+            var socketMessage = new SocketMessage
+            {
+                ClientId = Id,
+                Title = nameof(HandShake),
+                //Data = Encoding.UTF8.GetBytes("Handshake"),
+                MessageType = MessageType.Command,
+                SentUtc = DateTime.UtcNow
+            };
+            await SendMessageAsync(socketMessage);
         }
 
         public async Task DisconnectAsync()
@@ -66,6 +83,7 @@ namespace Networking
         {
             var messageDto = new SocketMessage
             {
+                ClientId = Id,
                 Data = Encoding.UTF8.GetBytes(message),
                 MessageType = MessageType.PlainText,
                 SentUtc = DateTime.UtcNow
@@ -99,9 +117,23 @@ namespace Networking
                 var jsonData = Encoding.UTF8.GetString(data);
                 var message = JsonConvert.DeserializeObject<SocketMessage>(jsonData);
                 message.ReceivedUtc = DateTime.UtcNow;
-                OnMessageReceived(message);
+                if (message.MessageType == MessageType.Command) OnCommandReceived(message);
+                else OnMessageReceived(message);
             }
         }
+
+        //private async Task ConnectToPeers(SocketMessage socketMessage)
+        //{
+        //    OnMessageLogged("connecting to peers...");
+        //    var jsonString = Encoding.UTF8.GetString(socketMessage.Data);
+        //    var peerData = JsonConvert.DeserializeObject<List<ClientListModel>>(jsonString);
+
+        //    var otherClient = peerData.FirstOrDefault(c => c.Id != Id);
+        //    if (otherClient == null) return;
+
+        //    var client = new TheClient(otherClient.RemoteIpAddress, otherClient.RemotePort);
+        //    await client.ConnectAsync();
+        //}
 
         protected virtual void OnDisconnected(string ipAddress, int port)
         {
