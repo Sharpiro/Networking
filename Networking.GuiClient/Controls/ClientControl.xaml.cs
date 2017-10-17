@@ -22,6 +22,7 @@ namespace Networking.GuiClient.Controls
 
         private void Initialize()
         {
+            _client.MessageLogged += message => _viewModel.LogEntries.Add(message);
             _client.MessageReceived += message => _viewModel.LogEntries.Add(Encoding.UTF8.GetString(message.Data));
             _client.Connected += (ipAddress, port) => _viewModel.LogEntries.Add($"connected to '{ipAddress}:{port}'");
             _client.Disconnected += (ipAddress, port) => _viewModel.LogEntries.Add($"disconnected from '{ipAddress}:{port}'");

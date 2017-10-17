@@ -9,16 +9,14 @@ namespace Networking.GuiClient.Controls
 {
     public partial class PeerControl : UserControl
     {
-        private TheClient _client;
-        private readonly Server _server;
+        private readonly Node _node;
         private readonly PeerControlViewModel _viewModel;
 
-        public PeerControl(TheClient client, Server server, PeerControlViewModel viewModel)
+        public PeerControl(Node node, PeerControlViewModel viewModel)
         {
             InitializeComponent();
 
-            _client = client ?? throw new ArgumentNullException(nameof(client));
-            _server = server ?? throw new ArgumentNullException(nameof(server));
+            _node = node ?? throw new ArgumentNullException(nameof(node));
             DataContext = _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
 
             Initialize();
@@ -26,19 +24,35 @@ namespace Networking.GuiClient.Controls
 
         private void Initialize()
         {
-            _client.MessageReceived += message => _viewModel.LogEntries.Add(Encoding.UTF8.GetString(message.Data));
-            _client.Connected += (ipAddress, port) => _viewModel.LogEntries.Add($"connected to '{ipAddress}:{port}'");
-            _client.Disconnected += (ipAddress, port) => _viewModel.LogEntries.Add($"disconnected from '{ipAddress}:{port}'");
-            //_client.ConnectionChanged += () => _viewModel.IsConnected = _client.IsConnected;
+            //client
+            _node.SuperNodeConnection.MessageLogged += message => _viewModel.LogEntries.Add(message);
+            _node.SuperNodeConnection.MessageReceived += message => _viewModel.LogEntries.Add(Encoding.UTF8.GetString(message.Data));
+            _node.SuperNodeConnection.Connected += (ipAddress, port) => _viewModel.LogEntries.Add($"connected to '{ipAddress}:{port}'");
+            _node.SuperNodeConnection.Disconnected += (ipAddress, port) => _viewModel.LogEntries.Add($"disconnected from '{ipAddress}:{port}'");
+
+            //server
+            _node.Server.MessageLogged += message => _viewModel.LogEntries.Add(message);
+            _node.Server.MessageReceived += (message) => _viewModel.LogEntries.Add($"{message.ClientId}: {Encoding.UTF8.GetString(message.Data)}");
+            _node.Server.ClientHandshake += clientId => _viewModel.LogEntries.Add($"client '{clientId}' handshake completed");
+            _node.Server.ClientAccepted += () => _viewModel.LogEntries.Add($"a client was accepted");
+            _node.Server.ClientDisconnected += clientId => _viewModel.LogEntries.Add($"client '{clientId}' disconnected");
+            _node.Server.Started += (ipAddress, port) => _viewModel.LogEntries.Add($"server started on '{ipAddress}:{port}'");
+            _node.Server.Stopped += () => _viewModel.LogEntries.Add("server stopped");
+            _node.Server.DiagnosticsStarted += () => _viewModel.LogEntries.Add("diagnostics started");
+            _node.Server.DiagnosticsStopped += () => _viewModel.LogEntries.Add("diagnostics stopped");
+            _node.Server.DiagnosticRun += diagnostics => _viewModel.LogEntries.Add(diagnostics);
+            _node.Server.CommandReceived += (message) => _viewModel.LogEntries.Add($"'{message.ClientId}' received command '{message.Title}'");
+            //_node.Server.CommandInvoked += (clientId, commandName) => _viewModel.LogEntries.Add($"'{clientId}' invoked command '{commandName}'");
         }
 
         private async void ConnectButton_OnClick(object sender, RoutedEventArgs e)
         {
             try
             {
-                if (_client.IsConnected) throw new InvalidOperationException("Cannot connect while already connected");
+                if (_node.SuperNodeConnection.IsConnected) throw new InvalidOperationException("Cannot connect while already connected");
                 IsEnabled = false;
-                await _client.ConnectAsync();
+                await _node.ConnectToSuperNodeAndListen();
+                //await _node.SuperNodeConnection.ConnectAsync();
             }
             catch (Exception ex)
             {
@@ -54,11 +68,11 @@ namespace Networking.GuiClient.Controls
         {
             try
             {
-                if (!_client.IsConnected) throw new InvalidOperationException("client not connected");
+                if (!_node.SuperNodeConnection.IsConnected) throw new InvalidOperationException("client not connected");
                 if (string.IsNullOrEmpty(_viewModel.InputText))
                     throw new NullReferenceException("Input must have a value");
                 IsEnabled = false;
-                await _client.SendMessageAsync(_viewModel.InputText);
+                await _node.SuperNodeConnection.SendMessageAsync(_viewModel.InputText);
             }
             catch (Exception ex)
             {
@@ -74,9 +88,9 @@ namespace Networking.GuiClient.Controls
         {
             try
             {
-                if (!_client.IsConnected) throw new InvalidOperationException("client not connected");
+                if (!_node.SuperNodeConnection.IsConnected) throw new InvalidOperationException("client not connected");
                 IsEnabled = false;
-                await _client.DisconnectAsync();
+                await _node.SuperNodeConnection.DisconnectAsync();
             }
             catch (Exception ex)
             {
@@ -92,10 +106,10 @@ namespace Networking.GuiClient.Controls
         {
             try
             {
-                if (_viewModel.IpAddress == _client.IpAddress && _viewModel.Port == _client.Port) return;
-                _client?.DisconnectAsync();
-                _client.IpAddress = _viewModel.IpAddress;
-                _client.Port = _viewModel.Port;
+                if (_viewModel.IpAddress == _node.SuperNodeConnection.IpAddress && _viewModel.Port == _node.SuperNodeConnection.Port) return;
+                _node.SuperNodeConnection?.DisconnectAsync();
+                _node.SuperNodeConnection.IpAddress = _viewModel.IpAddress;
+                _node.SuperNodeConnection.Port = _viewModel.Port;
             }
             catch (Exception ex)
             {
