@@ -23,6 +23,8 @@ namespace Networking
         public bool DiagnosticsRunning => !_diagnosticsCts?.IsCancellationRequested ?? false;
         public bool IsListening { get; private set; }
 
+        public ClientList Clients => _clients;
+
         public event Action ClientAccepted;
         public event Action<string> ClientHandshake;
         public event Action<string> ClientDisconnected;
@@ -61,7 +63,7 @@ namespace Networking
                 }
                 //var clientId = Guid.NewGuid().ToString();
                 var newClient = new TheClient(tcpClient);
-                _clients.Add(null, newClient);
+                Clients.Add(null, newClient);
                 OnClientAccepted();
                 var _ = ListenToClientAsync(newClient);
             }
@@ -72,12 +74,12 @@ namespace Networking
             if (_tcpListener == null) return;
             //if (_tcpListener == null) throw new InvalidOperationException($"The server is not curently running.");
             await Task.Yield();
-            foreach (var clientData in _clients.Where(c => c.IsConnected))
+            foreach (var clientData in Clients.Where(c => c.IsConnected))
             {
                 clientData.TcpClient.Client.Shutdown(SocketShutdown.Both);
                 clientData.TcpClient.Client.Close();
             }
-            _clients.Clear();
+            Clients.Clear();
             _listenCts.Cancel();
             _tcpListener.Server.Close();
             _tcpListener.Stop();
@@ -126,7 +128,7 @@ namespace Networking
                 //message.ClientId = client.Id;
                 //message.Client = client;
                 message.ReceivedUtc = DateTime.UtcNow;
-                if (message.MessageType == MessageType.Command) OnCommandReceived(message);
+                if (message.MessageType == MessageType.Command) HandleCommand(message);
                 else OnMessageReceived(message);
             }
         }
@@ -137,7 +139,7 @@ namespace Networking
             while (!cancellationToken.IsCancellationRequested)
             {
                 builder.AppendLine($"Diagnostics: {DateTime.UtcNow}----------------------------");
-                foreach (var client in _clients)
+                foreach (var client in Clients)
                 {
                     builder.AppendLine($"'{client.Id}':\t'{client.IsConnected}'\t'{client.LocalEndPoint}'\t'{client.RemoteEndPoint}'");
                 }
@@ -151,7 +153,7 @@ namespace Networking
         {
             if (string.IsNullOrEmpty(clientId)) throw new ArgumentNullException(nameof(clientId));
             if (string.IsNullOrEmpty(message)) throw new ArgumentNullException(nameof(message));
-            var client = _clients.Get(clientId);
+            var client = Clients.Get(clientId);
             if (client == null) throw new NullReferenceException($"Could not find client with id '{clientId}'");
             var messageDto = new SocketMessage
             {
@@ -166,7 +168,7 @@ namespace Networking
         {
             if (string.IsNullOrEmpty(clientId)) throw new ArgumentNullException(nameof(clientId));
             if (message == null) throw new ArgumentNullException(nameof(message));
-            var client = _clients.Get(clientId);
+            var client = Clients.Get(clientId);
             if (client == null) throw new NullReferenceException($"Could not find client with id '{clientId}'");
             await client.SendMessageAsync(message);
         }
@@ -174,7 +176,7 @@ namespace Networking
         public async Task BroadcastMessageAsync(SocketMessage message)
         {
             if (message == null) throw new ArgumentNullException(nameof(message));
-            foreach (var client in _clients.Where(c => c.IsConnected))
+            foreach (var client in Clients.Where(c => c.IsConnected))
             {
                 await client.SendMessageAsync(message);
             }
@@ -182,7 +184,7 @@ namespace Networking
 
         private async Task ConnectToPeers(SocketMessage socketMessage)
         {
-            var serializableList = _clients.GetSerializableList();
+            var serializableList = Clients.GetSerializableList();
             var json = JsonConvert.SerializeObject(serializableList);
             var responseJson = new SocketMessage
             {
@@ -194,10 +196,10 @@ namespace Networking
             await BroadcastMessageAsync(responseJson);
         }
 
-        private async Task HandShake(SocketMessage message)
+        private void HandShake(SocketMessage message)
         {
             OnClientHandshake(message.ClientId);
-            await ConnectToPeers(message);
+            //await ConnectToPeers(message);
         }
 
         protected virtual void OnClientAccepted() => ClientAccepted?.Invoke();

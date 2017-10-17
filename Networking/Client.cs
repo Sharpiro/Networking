@@ -117,23 +117,10 @@ namespace Networking
                 var jsonData = Encoding.UTF8.GetString(data);
                 var message = JsonConvert.DeserializeObject<SocketMessage>(jsonData);
                 message.ReceivedUtc = DateTime.UtcNow;
-                if (message.MessageType == MessageType.Command) OnCommandReceived(message);
+                if (message.MessageType == MessageType.Command) HandleCommand(message);
                 else OnMessageReceived(message);
             }
         }
-
-        //private async Task ConnectToPeers(SocketMessage socketMessage)
-        //{
-        //    OnMessageLogged("connecting to peers...");
-        //    var jsonString = Encoding.UTF8.GetString(socketMessage.Data);
-        //    var peerData = JsonConvert.DeserializeObject<List<ClientListModel>>(jsonString);
-
-        //    var otherClient = peerData.FirstOrDefault(c => c.Id != Id);
-        //    if (otherClient == null) return;
-
-        //    var client = new TheClient(otherClient.RemoteIpAddress, otherClient.RemotePort);
-        //    await client.ConnectAsync();
-        //}
 
         protected virtual void OnDisconnected(string ipAddress, int port)
         {
